@@ -38,7 +38,6 @@ func (lem *LEM1802) DeviceDetails() (uint32, uint16, uint32) {
 }
 
 func (lem *LEM1802) Interrupt(d *dcpu) {
-	fmt.Printf("LEM interrupt: A = %04x B = %04x\n", d.regs[ra], d.regs[rb])
 	switch d.regs[0] {
 	case 0: // MAP_SCREEN
 		lem.vram = d.regs[1]
@@ -52,7 +51,6 @@ func (lem *LEM1802) Interrupt(d *dcpu) {
 func (lem *LEM1802) Tick(d *dcpu) {
 	// TODO: When the display gets disabled, paint it black.
 	if lem.vram != 0 && time.Since(lem.lastFrame) > 50*time.Millisecond {
-		fmt.Printf("Painting\n")
 		var pitch int
 		err := lem.texture.Lock(nil, &lem.pixels, &pitch)
 		if pitch != widthPixels*4 {
