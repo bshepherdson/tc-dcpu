@@ -1,0 +1,221 @@
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+const sectorSize = 1024
+const cyclesPerSector = 1666 // 200 RPM, 18 sectors/track = 1666 cycles/sector
+const cyclesPerTrack = 2400  // 2.4ms per track.
+
+const (
+	floppyStateNoMedia uint16 = 0
+	floppyStateReady          = 1
+	floppyStateReadyWP        = 2
+	floppyStateBusy           = 3
+)
+
+const (
+	floppyErrorNone      uint16 = 0
+	floppyErrorBusy             = 1
+	floppyErrorNoMedia          = 2
+	floppyErrorProtected        = 3
+	floppyErrorEject            = 4
+	floppyErrorBadSector        = 5
+	floppyErrorBroken           = 0xffff
+)
+
+type M35FD struct {
+	file           *os.File
+	size           int64
+	state          uint16
+	lastError      uint16
+	intMessage     uint16
+	busy           bool
+	writeProtected bool
+	writing        bool
+
+	sector    uint16
+	addr      uint16
+	countdown uint16
+}
+
+var diskNumber int = 0
+
+/*
+30,700 words/second
+each track has 18*512 = 9216 per track = 3.33116 circuits per second
+200 RPM
+*/
+func NewM35FD() device {
+	if diskNumber >= len(diskFileNames) {
+		panic("not enough filenames for number of disks")
+	}
+	name := diskFileNames[diskNumber]
+	diskNumber++
+
+	file, err := os.Open(name)
+	if err != nil {
+		panic(fmt.Errorf("could not find file '%s': %v", name, err))
+	}
+	disk := new(M35FD)
+	disk.file = file
+	info, err := file.Stat()
+	if err != nil {
+		panic(err)
+	}
+	disk.size = info.Size()
+	return disk
+}
+
+func (fd *M35FD) DeviceDetails() (uint32, uint16, uint32) {
+	return 0x4fd524c5, 0x000b, 0x1eb37e91
+}
+
+func (fd *M35FD) Interrupt(d *dcpu) {
+	switch d.regs[ra] {
+	case 0: // Poll device
+		d.regs[rb] = fd.state
+		d.regs[rc] = fd.lastError
+
+	case 1: // Set interrupt
+		fd.intMessage = d.regs[rx]
+
+	case 2: // Read sector
+		if fd.state == floppyStateNoMedia {
+			fd.lastError = floppyErrorNoMedia
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		} else if fd.state == floppyStateBusy {
+			fd.lastError = floppyErrorBusy
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		} else if sectorSize*int64(d.regs[rx]) < fd.size {
+			fd.state = floppyStateBusy
+			fd.writing = false
+			fd.busy = true
+			oldSector := fd.sector
+			fd.sector = d.regs[rx]
+			fd.addr = d.regs[ry]
+			d.regs[rb] = 1
+			fd.countdown = seekTime(oldSector, fd.sector)
+		} else {
+			fd.lastError = floppyErrorBadSector
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		}
+
+	case 3: // Write sector
+		if fd.state == floppyStateNoMedia {
+			fd.lastError = floppyErrorNoMedia
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		} else if fd.state == floppyStateBusy {
+			fd.lastError = floppyErrorBusy
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		} else if fd.state == floppyStateReadyWP {
+			fd.lastError = floppyErrorProtected
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		} else if sectorSize*int64(d.regs[rx]) < fd.size {
+			fd.writing = true
+			fd.state = floppyStateBusy
+			fd.busy = true
+			oldSector := fd.sector
+			fd.sector = d.regs[rx]
+			fd.addr = d.regs[ry]
+			d.regs[rb] = 1
+			fd.countdown = seekTime(oldSector, fd.sector)
+		} else {
+			fd.lastError = floppyErrorBadSector
+			fd.maybeInterrupt(d)
+			d.regs[rb] = 0
+		}
+	}
+}
+
+func seekTime(old, nu uint16) uint16 {
+	oldTrack := old / 18
+	oldPos := old % 18
+	nuTrack := nu / 18
+	nuPos := nu % 18
+
+	tracks := oldTrack - nuTrack
+	if tracks < 0 {
+		tracks = -tracks
+	}
+	sectors := oldPos - nuPos
+	if sectors < 0 {
+		sectors = -sectors
+	}
+
+	return tracks*cyclesPerTrack + sectors*cyclesPerSector
+}
+
+func (fd *M35FD) maybeInterrupt(d *dcpu) {
+	if fd.intMessage != 0 {
+		d.addInterrupt(fd.intMessage)
+	}
+}
+
+func (fd *M35FD) Tick(d *dcpu) {
+	if !fd.busy {
+		return
+	}
+
+	fd.countdown--
+	if fd.countdown > 0 {
+		return
+	}
+
+	// Otherwise our operation just finished.
+	fd.busy = false
+	fd.state = floppyStateReady
+	if fd.writeProtected {
+		fd.state = floppyStateReadyWP
+	}
+	fd.lastError = floppyErrorNone
+
+	// Actually perform the read or write!
+	if fd.writing {
+		mem := d.mem[fd.addr : fd.addr+512]
+		bytes := make([]byte, 1024)
+		for i := 0; i < 512; i++ {
+			bytes[2*i] = byte(mem[i] >> 8)
+			bytes[2*i+1] = byte(mem[i] & 0xff)
+		}
+		_, err := fd.file.WriteAt(bytes, int64(fd.sector)*1024)
+		if err != nil {
+			fd.lastError = floppyErrorBroken
+		}
+	} else {
+		mem := d.mem[fd.addr : fd.addr+512]
+		bytes := make([]byte, 1024)
+		n, err := fd.file.ReadAt(bytes, int64(fd.sector)*1024)
+		if n < 1024 || err != nil {
+			fd.lastError = floppyErrorBroken
+			return
+		}
+
+		for i := 0; i < 512; i++ {
+			mem[i] = (uint16(bytes[2*i]) << 8) | uint16(bytes[2*i+1])
+		}
+	}
+	fd.maybeInterrupt(d)
+}
+
+func (fd *M35FD) Cleanup() {
+	fd.file.Close()
+}
+
+/*
+type device interface {
+	// Returns the device ID, version and manufacturer.
+	DeviceDetails() (uint32, uint16, uint32)
+	Interrupt(*dcpu)
+	Tick(*dcpu)
+	Cleanup()
+}
+*/
