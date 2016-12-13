@@ -490,6 +490,13 @@ func (d *dcpu) runOp() {
 
 	if d.debug {
 		disasmOp(d.mem[:], d.pc, d.pcPeek())
+		fmt.Printf("    A  %04x  B  %04x  C  %04x  X  %04x  Y  %04x  Z  %04x  I  %04x  J  %04x\n",
+			d.regs[ra], d.regs[rb], d.regs[rc], d.regs[rx], d.regs[ry], d.regs[rz],
+			d.regs[ri], d.regs[rj])
+		fmt.Printf("   [A] %04x [B] %04x [C] %04x [X] %04x [Y] %04x [Z] %04x [I] %04x [J] %04x\n",
+			d.mem[d.regs[ra]], d.mem[d.regs[rb]], d.mem[d.regs[rc]],
+			d.mem[d.regs[rx]], d.mem[d.regs[ry]], d.mem[d.regs[rz]],
+			d.mem[d.regs[ri]], d.mem[d.regs[rj]])
 	}
 
 	// Opcode is aaaaaabbbbbooooo
