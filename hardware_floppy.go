@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -194,13 +195,18 @@ func (fd *M35FD) Tick(d *dcpu) {
 		mem := d.mem[fd.addr : fd.addr+512]
 		bytes := make([]byte, 1024)
 		n, err := fd.file.ReadAt(bytes, int64(fd.sector)*1024)
-		if n < 1024 || err != nil {
+		if err != io.EOF {
 			fd.lastError = floppyErrorBroken
 			return
 		}
 
+		// In case of EOF, we read 0s.
 		for i := 0; i < 512; i++ {
-			mem[i] = (uint16(bytes[2*i]) << 8) | uint16(bytes[2*i+1])
+			if 2*i < n {
+				mem[i] = (uint16(bytes[2*i]) << 8) | uint16(bytes[2*i+1])
+			} else {
+				mem[i] = 0
+			}
 		}
 	}
 	fd.maybeInterrupt(d)
