@@ -16,6 +16,7 @@ type dcpu struct {
 	skipping bool
 	queueing bool
 	halted   bool
+	debug    bool
 	cycles   int
 	regs     [8]uint16   // General-purpose registers: A B C X Y Z I J
 	ints     [256]uint16 // Pending interrupts.
@@ -194,13 +195,13 @@ func (d *dcpu) runMainOp(op, a, b uint16) {
 		case 0x13: // IFN - branch if not equal
 			branch = av != bv
 		case 0x14: // IFG - branch if b > a
-			branch = b > a
+			branch = bv > av
 		case 0x15: // IFA - branch if b > a, signed
-			branch = int16(b) > int16(a)
+			branch = int16(bv) > int16(av)
 		case 0x16: // IFL - branch if b < a
-			branch = b < a
+			branch = bv < av
 		case 0x17: // IFU - branch if b < a, signed
-			branch = int16(b) < int16(a)
+			branch = int16(bv) < int16(av)
 		}
 
 		d.skipping = !branch
@@ -420,6 +421,7 @@ func (d *dcpu) runSpecialOp(op, a uint16) {
 	case 0x14: // BRK a
 		// TODO: Implement debugging here.
 		fmt.Printf("Breakpoint: %04x\n", d.readArg(a, true))
+		d.debug = true
 		d.cycles++
 	case 0x15: // HLT a
 		d.halted = true
@@ -443,6 +445,11 @@ func (d *dcpu) runOp() {
 	// If we're skipping, check whether this is a branching opcode or not.
 	if d.skipping {
 		// Opcode is aaaaaabbbbbooooo
+		if d.debug {
+			fmt.Printf("SKIPPING instruction at %04x\n", d.pc)
+			disasmOp(d.mem[:], d.pc, d.pcPeek())
+		}
+
 		x := d.pcGet()
 		op := x & 31
 		b := (x >> 5) & 31
@@ -469,12 +476,20 @@ func (d *dcpu) runOp() {
 	if !d.queueing && d.intCount > 0 {
 		// TODO: Use a circular buffer or something to stop this being so costly.
 		msg := d.popInterrupt()
+		if d.debug {
+			fmt.Printf("Interrupt fired! msg = $%x %d\n", msg)
+		}
+
 		if d.ia != 0 {
 			d.push(d.pc)
 			d.push(d.regs[ra])
 			d.pc = d.ia
 			d.regs[ra] = msg
 		}
+	}
+
+	if d.debug {
+		disasmOp(d.mem[:], d.pc, d.pcPeek())
 	}
 
 	// Opcode is aaaaaabbbbbooooo
@@ -506,6 +521,7 @@ func main() {
 	dumpDevices := flag.Bool("dump-hw", false,
 		"Dump a list of hardware devices and exit.")
 	disks := flag.String("disk", "", "Filenames of the disk to load (comma-separated.")
+	disassemble := flag.Bool("disassemble", false, "Disassemble the ROM to stdout")
 
 	flag.Parse()
 	if !flag.Parsed() {
@@ -527,8 +543,24 @@ func main() {
 		return
 	}
 
+	// Copy the ROM into memory.
+	rom, err := ioutil.ReadFile(romFile)
+	if err != nil {
+		panic("failed to open ROM file")
+	}
+
 	// Set up the DCPU and populate the devices.
 	dcpu := new(dcpu)
+	// Copy the ROM into memory.
+	for i := 0; i < len(rom); i += 2 {
+		dcpu.mem[i>>1] = (uint16(rom[i]) << 8) | uint16(rom[i+1])
+	}
+
+	if *disassemble {
+		disasmROM(dcpu.mem[:])
+		return
+	}
+
 	deviceNames := strings.Split(*deviceList, ",")
 	diskFileNames = strings.Split(*disks, ",")
 	dcpu.devices = make([]device, len(deviceNames))
@@ -540,15 +572,6 @@ func main() {
 			dumpDeviceList()
 			return
 		}
-	}
-
-	// Copy the ROM into memory.
-	rom, err := ioutil.ReadFile(romFile)
-	if err != nil {
-		panic("failed to open ROM file")
-	}
-	for i := 0; i < len(rom); i += 2 {
-		dcpu.mem[i>>1] = (uint16(rom[i]) << 8) | uint16(rom[i+1])
 	}
 
 	for {
