@@ -42,12 +42,15 @@ type M35FD struct {
 	countdown uint16
 }
 
-var diskNumber int = 0
+var diskNumber int
 
 /*
 30,700 words/second
 each track has 18*512 = 9216 per track = 3.33116 circuits per second
 200 RPM
+
+Note that the disk image is stored big-endian. That is, the first byte of the
+file is the high portion of the first word, and the second byte is the low part.
 */
 func NewM35FD() device {
 	if diskNumber >= len(diskFileNames) {

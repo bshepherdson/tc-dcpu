@@ -53,7 +53,7 @@ func (k *Keyboard) Tick(d *dcpu) {
 			}
 
 		case *sdl.KeyUpEvent:
-			key, index := k.readKey(t.Keysym)
+			_, index := k.readKey(t.Keysym)
 
 			k.keysDown[index] = false
 		}
