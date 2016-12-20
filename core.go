@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -9,20 +10,21 @@ import (
 )
 
 type dcpu struct {
-	pc       uint16
-	ia       uint16
-	ex       uint16
-	sp       uint16
-	skipping bool
-	queueing bool
-	halted   bool
-	debug    bool
-	cycles   int
-	regs     [8]uint16   // General-purpose registers: A B C X Y Z I J
-	ints     [256]uint16 // Pending interrupts.
-	intCount int
-	devices  []device
-	mem      [65536]uint16
+	pc          uint16
+	ia          uint16
+	ex          uint16
+	sp          uint16
+	skipping    bool
+	queueing    bool
+	halted      bool
+	debug       bool
+	cycles      int
+	regs        [8]uint16   // General-purpose registers: A B C X Y Z I J
+	ints        [256]uint16 // Pending interrupts.
+	intCount    int
+	devices     []device
+	breakpoints []uint16
+	mem         [65536]uint16
 }
 
 type device interface {
@@ -419,8 +421,6 @@ func (d *dcpu) runSpecialOp(op, a uint16) {
 		d.cycles++
 		fmt.Printf("Log: 0x%04x %d %c\n", av, int16(av), av)
 	case 0x14: // BRK a
-		// TODO: Implement debugging here.
-		fmt.Printf("Breakpoint: %04x\n", d.readArg(a, true))
 		d.debug = true
 		d.cycles++
 	case 0x15: // HLT a
@@ -429,7 +429,8 @@ func (d *dcpu) runSpecialOp(op, a uint16) {
 }
 
 // Runs a single cycle. That might mean doing nothing,
-func (d *dcpu) runOp() {
+// Returns true if an instruction was executed, false if not.
+func (d *dcpu) runOp() bool {
 	// Tick the hardware devices.
 	for _, dev := range d.devices {
 		dev.Tick(d)
@@ -437,7 +438,7 @@ func (d *dcpu) runOp() {
 
 	if d.cycles > 1 {
 		d.cycles--
-		return
+		return false
 	}
 
 	d.cycles = 0
@@ -445,11 +446,6 @@ func (d *dcpu) runOp() {
 	// If we're skipping, check whether this is a branching opcode or not.
 	if d.skipping {
 		// Opcode is aaaaaabbbbbooooo
-		if d.debug {
-			fmt.Printf("SKIPPING instruction at %04x\n", d.pc)
-			disasmOp(d.mem[:], d.pc, d.pcPeek())
-		}
-
 		x := d.pcGet()
 		op := x & 31
 		b := (x >> 5) & 31
@@ -464,7 +460,7 @@ func (d *dcpu) runOp() {
 		if 0x10 <= op && op < 0x18 { // Branching
 			// Keep skipping at the cost of a cycle.
 			d.cycles++
-			return
+			return false
 		}
 
 		// PC should now be pointed at the next instruction to run.
@@ -476,27 +472,12 @@ func (d *dcpu) runOp() {
 	if !d.queueing && d.intCount > 0 {
 		// TODO: Use a circular buffer or something to stop this being so costly.
 		msg := d.popInterrupt()
-		if d.debug {
-			fmt.Printf("Interrupt fired! msg = $%x %d\n", msg)
-		}
-
 		if d.ia != 0 {
 			d.push(d.pc)
 			d.push(d.regs[ra])
 			d.pc = d.ia
 			d.regs[ra] = msg
 		}
-	}
-
-	if d.debug {
-		disasmOp(d.mem[:], d.pc, d.pcPeek())
-		fmt.Printf("    A  %04x  B  %04x  C  %04x  X  %04x  Y  %04x  Z  %04x  I  %04x  J  %04x\n",
-			d.regs[ra], d.regs[rb], d.regs[rc], d.regs[rx], d.regs[ry], d.regs[rz],
-			d.regs[ri], d.regs[rj])
-		fmt.Printf("   [A] %04x [B] %04x [C] %04x [X] %04x [Y] %04x [Z] %04x [I] %04x [J] %04x\n",
-			d.mem[d.regs[ra]], d.mem[d.regs[rb]], d.mem[d.regs[rc]],
-			d.mem[d.regs[rx]], d.mem[d.regs[ry]], d.mem[d.regs[rz]],
-			d.mem[d.regs[ri]], d.mem[d.regs[rj]])
 	}
 
 	// Opcode is aaaaaabbbbbooooo
@@ -507,6 +488,31 @@ func (d *dcpu) runOp() {
 
 	// Not skipping, we're really running this one.
 	d.runMainOp(op, a, b)
+	return true
+}
+
+var inputReader *bufio.Reader
+
+func (d *dcpu) debugConsole() {
+	// Print the prompt and handle the input.
+	fmt.Printf("%04x debug> ", d.pc)
+	in, err := inputReader.ReadString('\n')
+	if err != nil {
+		fmt.Printf("error while reading input: %v\n", err)
+		return
+	}
+
+	// Try to parse in. First split on spaces.
+	args := strings.Split(strings.TrimSpace(in), " ")
+	if cmd, ok := debugCommands[args[0]]; ok {
+		cmd.Run(d, args)
+	} else {
+		fmt.Printf("Unknown command '%s'\n", args[0])
+		fmt.Printf("Commands:\n")
+		for key, dbg := range debugCommands {
+			fmt.Printf("%s\t%s\n", key, dbg.Describe())
+		}
+	}
 }
 
 func usage() {
@@ -568,6 +574,8 @@ func main() {
 		return
 	}
 
+	inputReader = bufio.NewReader(os.Stdin)
+
 	deviceNames := strings.Split(*deviceList, ",")
 	diskFileNames = strings.Split(*disks, ",")
 	dcpu.devices = make([]device, len(deviceNames))
@@ -582,7 +590,12 @@ func main() {
 	}
 
 	for {
-		dcpu.runOp()
+		for !dcpu.debug {
+			dcpu.runOp()
+		}
+
+		// Show the debug console and handle commands.
+		dcpu.debugConsole()
 	}
 }
 

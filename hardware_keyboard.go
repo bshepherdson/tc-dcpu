@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
@@ -38,7 +37,6 @@ func (k *Keyboard) Tick(d *dcpu) {
 			d.kill()
 		case *sdl.KeyDownEvent:
 			key, index := k.readKey(t.Keysym)
-			fmt.Printf("keydown: %d %c\n", index, key)
 
 			if key == 0 {
 				if index != 0 {
@@ -53,11 +51,9 @@ func (k *Keyboard) Tick(d *dcpu) {
 			if k.tail >= 256 {
 				k.tail -= 256
 			}
-			fmt.Printf("Buffered: %d %c\n", key, rune(key))
 
 		case *sdl.KeyUpEvent:
 			key, index := k.readKey(t.Keysym)
-			fmt.Printf("keyup: %d %c\n", index, key)
 
 			k.keysDown[index] = false
 		}
@@ -131,7 +127,7 @@ func (k *Keyboard) readKey(sym sdl.Keysym) (uint16, uint32) {
 	}
 
 	// Unrecognized key. Return 0.
-	fmt.Printf("Unrecognized keycode: %d\n", sym.Sym)
+	//fmt.Printf("Unrecognized keycode: %d\n", sym.Sym)
 	return 0, 0
 }
 
