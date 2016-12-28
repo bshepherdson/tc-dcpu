@@ -70,6 +70,7 @@ func NewM35FD() device {
 		panic(err)
 	}
 	disk.size = info.Size()
+	disk.state = floppyStateReady
 	return disk
 }
 
@@ -82,6 +83,7 @@ func (fd *M35FD) Interrupt(d *dcpu) {
 	case 0: // Poll device
 		d.regs[rb] = fd.state
 		d.regs[rc] = fd.lastError
+		fd.lastError = 0
 
 	case 1: // Set interrupt
 		fd.intMessage = d.regs[rx]
@@ -198,7 +200,7 @@ func (fd *M35FD) Tick(d *dcpu) {
 		mem := d.mem[fd.addr : fd.addr+512]
 		bytes := make([]byte, 1024)
 		n, err := fd.file.ReadAt(bytes, int64(fd.sector)*1024)
-		if err != io.EOF {
+		if err != nil && err != io.EOF {
 			fd.lastError = floppyErrorBroken
 			return
 		}

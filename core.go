@@ -421,6 +421,7 @@ func (d *dcpu) runSpecialOp(op, a uint16) {
 		d.cycles++
 		fmt.Printf("Log: 0x%04x %d %c\n", av, int16(av), av)
 	case 0x14: // BRK a
+		fmt.Printf("Hit breakpoint %d\n", d.readArg(a, true))
 		d.debug = true
 		d.cycles++
 	case 0x15: // HLT a
