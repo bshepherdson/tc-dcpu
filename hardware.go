@@ -1,10 +1,12 @@
 package main
 
-var deviceTypes = map[string]func() device{
-	"keyboard": func() device { return new(Keyboard) },
-	"lem1802":  func() device { return NewLEM1802() },
-	"clock":    func() device { return NewClock() },
-	"m35fd":    func() device { return NewM35FD() },
+import "emulator/common"
+
+var deviceTypes = map[string]func() common.Device{
+	"keyboard": func() common.Device { return new(Keyboard) },
+	"lem1802":  func() common.Device { return NewLEM1802() },
+	"clock":    func() common.Device { return NewClock() },
+	"m35fd":    func() common.Device { return NewM35FD() },
 }
 
 var deviceDescriptions = map[string]string{

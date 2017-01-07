@@ -1,6 +1,7 @@
 package main
 
 import (
+	"emulator/common"
 	"fmt"
 	"runtime"
 	"time"
@@ -37,18 +38,18 @@ func (lem *LEM1802) DeviceDetails() (uint32, uint16, uint32) {
 	return 0x734df615, 0x1802, 0x1c6c8b36
 }
 
-func (lem *LEM1802) Interrupt(d *dcpu) {
-	switch d.regs[0] {
+func (lem *LEM1802) Interrupt(c common.CPU) {
+	switch c.ReadReg(0) {
 	case 0: // MAP_SCREEN
-		lem.vram = d.regs[1]
+		lem.vram = c.ReadReg(1)
 	case 1: // MAP_FONT
-		lem.fontram = d.regs[1]
+		lem.fontram = c.ReadReg(1)
 	case 2: // MAP_PALETTE
-		lem.palram = d.regs[1]
+		lem.palram = c.ReadReg(1)
 	}
 }
 
-func (lem *LEM1802) Tick(d *dcpu) {
+func (lem *LEM1802) Tick(c common.CPU) {
 	// TODO: When the display gets disabled, paint it black.
 	if lem.vram != 0 && time.Since(lem.lastFrame) > 50*time.Millisecond {
 		var pitch int
@@ -63,12 +64,12 @@ func (lem *LEM1802) Tick(d *dcpu) {
 		var palette []uint16 = defaultPalette[:]
 		var font []uint16 = defaultFont[:]
 		if lem.palram != 0 {
-			palette = d.mem[lem.palram : lem.palram+16]
+			palette = c.Memory()[lem.palram : lem.palram+16]
 		}
 		if lem.fontram != 0 {
-			font = d.mem[lem.fontram : lem.fontram+256]
+			font = c.Memory()[lem.fontram : lem.fontram+256]
 		}
-		vram := d.mem[lem.vram : lem.vram+widthChars*heightChars]
+		vram := c.Memory()[lem.vram : lem.vram+widthChars*heightChars]
 
 		for i := 0; i < heightChars; i++ {
 			for j := 0; j < widthChars; j++ {
@@ -144,7 +145,7 @@ func (lem *LEM1802) writePixel(c uint16, x, y int) {
 
 func (lem *LEM1802) Cleanup() {}
 
-func NewLEM1802() device {
+func NewLEM1802() common.Device {
 	lem := new(LEM1802)
 
 	lem.lastFrame = time.Now()

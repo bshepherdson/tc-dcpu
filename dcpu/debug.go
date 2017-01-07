@@ -1,4 +1,4 @@
-package main
+package dcpu
 
 import (
 	"fmt"

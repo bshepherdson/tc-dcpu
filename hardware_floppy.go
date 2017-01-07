@@ -1,6 +1,7 @@
 package main
 
 import (
+	"emulator/common"
 	"fmt"
 	"io"
 	"os"
@@ -52,7 +53,7 @@ each track has 18*512 = 9216 per track = 3.33116 circuits per second
 Note that the disk image is stored big-endian. That is, the first byte of the
 file is the high portion of the first word, and the second byte is the low part.
 */
-func NewM35FD() device {
+func NewM35FD() common.Device {
 	if diskNumber >= len(diskFileNames) {
 		panic("not enough filenames for number of disks")
 	}
@@ -78,66 +79,66 @@ func (fd *M35FD) DeviceDetails() (uint32, uint16, uint32) {
 	return 0x4fd524c5, 0x000b, 0x1eb37e91
 }
 
-func (fd *M35FD) Interrupt(d *dcpu) {
-	switch d.regs[ra] {
+func (fd *M35FD) Interrupt(c common.CPU) {
+	switch c.ReadReg(0) {
 	case 0: // Poll device
-		d.regs[rb] = fd.state
-		d.regs[rc] = fd.lastError
+		c.WriteReg(1, fd.state)
+		c.WriteReg(2, fd.lastError)
 		fd.lastError = 0
 
 	case 1: // Set interrupt
-		fd.intMessage = d.regs[rx]
+		fd.intMessage = c.ReadReg(3)
 
 	case 2: // Read sector
 		if fd.state == floppyStateNoMedia {
 			fd.lastError = floppyErrorNoMedia
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
 		} else if fd.state == floppyStateBusy {
 			fd.lastError = floppyErrorBusy
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
-		} else if sectorSize*int64(d.regs[rx]) < fd.size {
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
+		} else if sectorSize*int64(c.ReadReg(3)) < fd.size {
 			fd.state = floppyStateBusy
 			fd.writing = false
 			fd.busy = true
 			oldSector := fd.sector
-			fd.sector = d.regs[rx]
-			fd.addr = d.regs[ry]
-			d.regs[rb] = 1
+			fd.sector = c.ReadReg(3)
+			fd.addr = c.ReadReg(4)
+			c.WriteReg(1, 1)
 			fd.countdown = seekTime(oldSector, fd.sector)
 		} else {
 			fd.lastError = floppyErrorBadSector
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
 		}
 
 	case 3: // Write sector
 		if fd.state == floppyStateNoMedia {
 			fd.lastError = floppyErrorNoMedia
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
 		} else if fd.state == floppyStateBusy {
 			fd.lastError = floppyErrorBusy
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
 		} else if fd.state == floppyStateReadyWP {
 			fd.lastError = floppyErrorProtected
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
-		} else if sectorSize*int64(d.regs[rx]) < fd.size {
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
+		} else if sectorSize*int64(c.ReadReg(3)) < fd.size {
 			fd.writing = true
 			fd.state = floppyStateBusy
 			fd.busy = true
 			oldSector := fd.sector
-			fd.sector = d.regs[rx]
-			fd.addr = d.regs[ry]
-			d.regs[rb] = 1
+			fd.sector = c.ReadReg(3)
+			fd.addr = c.ReadReg(4)
+			c.WriteReg(1, 1)
 			fd.countdown = seekTime(oldSector, fd.sector)
 		} else {
 			fd.lastError = floppyErrorBadSector
-			fd.maybeInterrupt(d)
-			d.regs[rb] = 0
+			fd.maybeInterrupt(c)
+			c.WriteReg(1, 0)
 		}
 	}
 }
@@ -160,13 +161,13 @@ func seekTime(old, nu uint16) uint16 {
 	return tracks*cyclesPerTrack + sectors*cyclesPerSector
 }
 
-func (fd *M35FD) maybeInterrupt(d *dcpu) {
+func (fd *M35FD) maybeInterrupt(c common.CPU) {
 	if fd.intMessage != 0 {
-		d.addInterrupt(fd.intMessage)
+		c.AddInterrupt(fd.intMessage)
 	}
 }
 
-func (fd *M35FD) Tick(d *dcpu) {
+func (fd *M35FD) Tick(c common.CPU) {
 	if !fd.busy {
 		return
 	}
@@ -186,7 +187,7 @@ func (fd *M35FD) Tick(d *dcpu) {
 
 	// Actually perform the read or write!
 	if fd.writing {
-		mem := d.mem[fd.addr : fd.addr+512]
+		mem := c.Memory()[fd.addr : fd.addr+512]
 		bytes := make([]byte, 1024)
 		for i := 0; i < 512; i++ {
 			bytes[2*i] = byte(mem[i] >> 8)
@@ -197,7 +198,7 @@ func (fd *M35FD) Tick(d *dcpu) {
 			fd.lastError = floppyErrorBroken
 		}
 	} else {
-		mem := d.mem[fd.addr : fd.addr+512]
+		mem := c.Memory()[fd.addr : fd.addr+512]
 		bytes := make([]byte, 1024)
 		n, err := fd.file.ReadAt(bytes, int64(fd.sector)*1024)
 		if err != nil && err != io.EOF {
@@ -214,19 +215,9 @@ func (fd *M35FD) Tick(d *dcpu) {
 			}
 		}
 	}
-	fd.maybeInterrupt(d)
+	fd.maybeInterrupt(c)
 }
 
 func (fd *M35FD) Cleanup() {
 	fd.file.Close()
 }
-
-/*
-type device interface {
-	// Returns the device ID, version and manufacturer.
-	DeviceDetails() (uint32, uint16, uint32)
-	Interrupt(*dcpu)
-	Tick(*dcpu)
-	Cleanup()
-}
-*/

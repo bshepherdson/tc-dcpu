@@ -1,6 +1,7 @@
 package main
 
 import (
+	"emulator/common"
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
@@ -24,7 +25,7 @@ func (k *Keyboard) DeviceDetails() (uint32, uint16, uint32) {
 }
 
 // Nothing to do per-cycle.
-func (k *Keyboard) Tick(d *dcpu) {
+func (k *Keyboard) Tick(c common.CPU) {
 	if time.Since(k.lastPoll) < inputInterval {
 		return
 	}
@@ -34,7 +35,7 @@ func (k *Keyboard) Tick(d *dcpu) {
 	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 		switch t := event.(type) {
 		case *sdl.QuitEvent:
-			d.kill()
+			c.Exit()
 		case *sdl.KeyDownEvent:
 			key, index := k.readKey(t.Keysym)
 
@@ -131,17 +132,17 @@ func (k *Keyboard) readKey(sym sdl.Keysym) (uint16, uint32) {
 	return 0, 0
 }
 
-func (k *Keyboard) Interrupt(d *dcpu) {
-	switch d.regs[0] {
+func (k *Keyboard) Interrupt(c common.CPU) {
+	switch c.ReadReg(0) {
 	case 0: // CLEAR_BUFFER
 		k.head = 0
 		k.tail = 0
 
 	case 1: // GET_NEXT
 		if k.head == k.tail {
-			d.regs[2] = 0
+			c.WriteReg(2, 0)
 		} else {
-			d.regs[2] = k.buffer[k.head]
+			c.WriteReg(2, k.buffer[k.head])
 			k.head++
 			if k.head >= 256 {
 				k.head -= 256
@@ -150,16 +151,16 @@ func (k *Keyboard) Interrupt(d *dcpu) {
 
 	case 2: // CHECK_KEY
 		down := uint16(0)
-		if k.keysDown[d.regs[1]] {
+		if k.keysDown[c.ReadReg(1)] {
 			down = 1
 		}
-		d.regs[2] = down
+		c.WriteReg(2, down)
 
 	case 3: // SET_INT
-		k.intMessage = d.regs[1]
+		k.intMessage = c.ReadReg(1)
 
 	case 4: // SET_MODE
-		k.rawMode = d.regs[1] == 1
+		k.rawMode = c.ReadReg(1) == 1
 		// Buffer is cleared on mode switch.
 		k.head = 0
 		k.tail = 0
