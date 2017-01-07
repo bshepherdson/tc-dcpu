@@ -1,10 +1,8 @@
 package dcpu
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 
 	"emulator/common"
 )
@@ -49,22 +47,24 @@ func (d *dcpu) WriteReg(r, val uint16) {
 func (d *dcpu) AddInterrupt(msg uint16) {
 	d.addInterrupt(msg)
 }
+func (d *dcpu) AddBreakpoint(at uint16) {
+	d.breakpoints = append(d.breakpoints, at)
+}
 func (d *dcpu) AddDevice(dev common.Device) {
 	d.devices = append(d.devices, dev)
 }
 func (d *dcpu) Disassemble() {
 	disasmROM(d.Memory())
 }
+func (d *dcpu) DisassembleOp(at uint16) uint16 {
+	return uint16(disasmOp(d.mem[:], at, d.mem[at]))
+}
+func (d *dcpu) Debugging() *bool {
+	return &d.debug
+}
 
-func (d *dcpu) Run() {
-	for {
-		for !d.debug {
-			d.runOp()
-		}
-
-		// Show the debug console and handle commands.
-		d.debugConsole()
-	}
+func (d *dcpu) DebugPrompt() {
+	fmt.Printf("%04x debug> ", d.pc)
 }
 
 func (d *dcpu) Exit() {
@@ -464,7 +464,7 @@ func (d *dcpu) runSpecialOp(op, a uint16) {
 
 // Runs a single cycle. That might mean doing nothing,
 // Returns true if an instruction was executed, false if not.
-func (d *dcpu) runOp() bool {
+func (d *dcpu) RunOp() bool {
 	// Tick the hardware devices.
 	for _, dev := range d.devices {
 		dev.Tick(d)
@@ -523,28 +523,4 @@ func (d *dcpu) runOp() bool {
 	// Not skipping, we're really running this one.
 	d.runMainOp(op, a, b)
 	return true
-}
-
-var inputReader *bufio.Reader
-
-func (d *dcpu) debugConsole() {
-	// Print the prompt and handle the input.
-	fmt.Printf("%04x debug> ", d.pc)
-	in, err := inputReader.ReadString('\n')
-	if err != nil {
-		fmt.Printf("error while reading input: %v\n", err)
-		return
-	}
-
-	// Try to parse in. First split on spaces.
-	args := strings.Split(strings.TrimSpace(in), " ")
-	if cmd, ok := debugCommands[args[0]]; ok {
-		cmd.Run(d, args)
-	} else {
-		fmt.Printf("Unknown command '%s'\n", args[0])
-		fmt.Printf("Commands:\n")
-		for key, dbg := range debugCommands {
-			fmt.Printf("%s\t%s\n", key, dbg.Describe())
-		}
-	}
 }

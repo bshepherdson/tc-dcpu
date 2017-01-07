@@ -14,7 +14,7 @@ corresponding to operands (`aaa` and `bbb`), shifts (`sss`) and destinations
 4. `010000oooosssddd` - ALU operations
 5. `010001100L___aaa` - `BX` and `BLX`
 6. `010001101oo__ddd` - Hardware (`HWN`, `HWQ` and `HWI`)
-7. `0100011100000000` - Manipulating `CPSR`
+7. `01000111ooo_____` - Manipulating `CPSR`
 8. `01001dddXXXXXXXX` - `PC`-relative load
 9. `0101LB0aaabbbddd` - Load/store with register offset
 10. `0101HS1aaabbbddd` - Unused (formerly Load/Store sign-extended byte/halfword)
@@ -157,7 +157,7 @@ Does not change `CPSR` condition codes.
 
 ### Format 7 - Manipulating `CPSR`
 
-`01000111ooo_____`
+`01000111ooo__ddd`
 
 | `ooo` | Assembly | Meaning |
 | :---: | :--- | :--- |
@@ -455,10 +455,10 @@ assembled like this. `LR` is set to `PC`, and `PC` is set to the immediate value
 When the absolute address is too big for 11 bits (and therefore can't use format
 21), this two-instruction form is used.
 
-The first instruction has `H=0` and gives the high 8 bits. Those 8 bits are
+The first instruction has `H=1` and gives the high 8 bits. Those 8 bits are
 written into `LR` and shifted up by 8.
 
-The second instruction has `H=1` and gives the low 8 bits. Those 8 bits are
+The second instruction has `H=0` and gives the low 8 bits. Those 8 bits are
 ORed with `LR`, given the full 16-bit address in `LR`.
 
 Then `LR` is exchanged with `PC`, effectively performing a branch-and-link to

@@ -10,8 +10,15 @@ type CPU interface {
 	WriteReg(r, val uint16)
 	AddInterrupt(msg uint16)
 	AddDevice(Device)
-	Run()
+	AddBreakpoint(at uint16)
+	Debugging() *bool
+	DebugPrompt()
+	RegByName(name string) (uint16, string, bool)
+	Registers() []string
+
+	RunOp() bool // Runs a single cycle, returning false when nothing happened.
 	Disassemble()
+	DisassembleOp(at uint16) uint16 // Returns length in instructions.
 	Exit()
 }
 

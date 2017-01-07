@@ -96,5 +96,41 @@ func main() {
 		}
 	}
 
-	cpu.Run()
+	run(cpu)
+}
+
+var inputReader *bufio.Reader
+
+func debugConsole(c common.CPU) {
+	// Print the prompt and handle the input.
+	c.DebugPrompt()
+	in, err := inputReader.ReadString('\n')
+	if err != nil {
+		fmt.Printf("error while reading input: %v\n", err)
+		return
+	}
+
+	// Try to parse in. First split on spaces.
+	args := strings.Split(strings.TrimSpace(in), " ")
+	if cmd, ok := common.DebugCommands[args[0]]; ok {
+		cmd.Run(c, args)
+	} else {
+		fmt.Printf("Unknown command '%s'\n", args[0])
+		fmt.Printf("Commands:\n")
+		for key, dbg := range common.DebugCommands {
+			fmt.Printf("%s\t%s\n", key, dbg.Describe())
+		}
+	}
+}
+
+func run(c common.CPU) {
+	// Repeatedly try to run the CPU operation, stopping on a debug to show the
+	// console.
+	for {
+		for !*c.Debugging() {
+			c.RunOp()
+		}
+
+		debugConsole(c)
+	}
 }
