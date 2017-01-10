@@ -253,7 +253,7 @@ points at the value on top of the stack.
 | `L` | Assembly | Meaning |
 | :---: | :--- | :--- |
 | `0` | `STR Rd, [SP, #Imm]` | Store `Rd` to memory at `SP + Imm`. |
-| `1` | `LDR Rd, [Rb, #Imm]` | Read memory at `SP + Imm`, write to `Rd`. |
+| `1` | `LDR Rd, [SP, #Imm]` | Read memory at `SP + Imm`, write to `Rd`. |
 
 1 cycle. Does **not** set `CPSR` condition codes.
 

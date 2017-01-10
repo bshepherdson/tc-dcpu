@@ -7,6 +7,12 @@ This is a guide to using the assembler to produce code for the Risque-16.
 These directives aim to be compatible with
 [DASM](https://github.com/techcompliant/DASM).
 
+### INCLUDE
+
+Includes the text of the named file at this location.
+
+`.include "../some/file.asm"`
+
 ### DAT
 
 Writes literal values (numbers and strings).
