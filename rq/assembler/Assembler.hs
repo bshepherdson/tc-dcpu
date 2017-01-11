@@ -34,6 +34,7 @@ type Parser a = Parsec String () a
 
 data Asm = Data [Expr]
          | Macro String String
+         | Org Word16
          | LabelDef String
          | Symbol String Expr
          | Op String [Arg]
@@ -79,7 +80,7 @@ pLineComment = char ';' >> skipMany (noneOf "\r\n") >> endOfLine >> return()
 
 pDirective :: Parser Asm
 pDirective = (try pDAT <|> try pDEFINE <|> try pMACRO <|> try pINCLUDE <|>
-    try pRESERVE <|> pFILL) <* eol
+    try pRESERVE <|> try pORG <|> pFILL) <* eol
 
 charIC :: Char -> Parser Char
 charIC c = (char (toLower c) <|> char (toUpper c)) >> return c
@@ -90,13 +91,15 @@ stringIC = mapM charIC
 pComma :: Parser ()
 pComma = ws_ >> char ',' >> ws_
 
-pDAT, pDEFINE, pMACRO, pINCLUDE, pRESERVE, pFILL :: Parser Asm
+pDAT, pDEFINE, pMACRO, pINCLUDE, pRESERVE, pORG, pFILL :: Parser Asm
 pDAT = fmap (Data . concat) $ stringIC ".dat" *> ws1 *> sepBy pDatValue pComma
 pRESERVE = fmap (Data . flip replicate (Number 0) . fromIntegral) $
     stringIC ".reserve" *> ws1 *> number
 pFILL = fmap Data $ replicate <$>
     (fmap fromIntegral $ stringIC ".fill" *> ws1 *> number)
     <*> (pComma *> pNumber)
+
+pORG = fmap Org $ stringIC ".org" *> ws1 *> number
 
 pDEFINE = Symbol <$> (header *> ws1 *> identifier) <*> (pComma *> pValue)
   where header = try (stringIC ".define") <|> stringIC ".def"
@@ -225,6 +228,7 @@ placeholderInstruction = 0x8ead
 data AsmState = AsmState {
   _i :: Word16,
   _rom :: IOUArray Word16 Word16,
+  _used :: S.Set Word16,
   _symbols :: M.Map String Word16, -- Resolved symbols.
   _macros :: M.Map String String,  -- Known macros.
   _labels :: M.Map String (Maybe Word16),  -- All labels.
@@ -254,6 +258,7 @@ resolveAssembly asm = do
   isResolved .= True
   macros .= M.empty
   symbols .= M.empty
+  used .= S.empty
   i .= 0
 
   mapM_ assemble asm
@@ -270,6 +275,8 @@ assemble (LabelDef label) = do
   mold <- (^. at label) <$> use labels
   labels %= (at label .~ Just (Just j))
   maybeDirty mold j
+
+assemble (Org x) = i .= x
 
 -- Updating symbols is fine and correct, and doesn't cause dirtying.
 assemble (Symbol name x) = do
@@ -686,6 +693,11 @@ exprAsString (Ident s) = s
 emit :: Word16 -> AM ()
 emit x = do
   j <- use i
+  u <- use used
+  when (S.member j u) $ liftIO $ do
+    putStrLn $ "Emitting the same word twice: $" ++ showHex j "" ++ " - bad .ORG?"
+    exitFailure
+  used %= S.insert j
   i %= (+1)
   r <- use rom
   liftIO $ writeArray r j x
@@ -736,14 +748,15 @@ main = do
   st <- runAM (resolveAssembly asm) AsmState{
     _i = 0,
     _rom = output,
+    _used = S.empty,
     _symbols = M.empty,
     _macros = M.empty,
     _labels = collectLabels asm M.empty,
     _isDirty = True,
     _isResolved = False
   }
-  let j = _i st
-  putStrLn $ "Done, " ++ show j ++ " words"
+  let j = 1 + S.findMax (_used st)
+  putStrLn $ "Done, $" ++ showHex j "" ++ "(" ++ show j ++ ") words"
   rs <- genericTake j <$> getElems (_rom st)
   mapM_ (putStrLn . flip showHex "") rs
 
