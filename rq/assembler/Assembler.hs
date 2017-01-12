@@ -18,6 +18,7 @@ import Data.Word
 import Numeric
 import System.Environment
 import System.Exit
+import System.IO
 import Text.Parsec hiding (labels)
 
 knownInstructions :: S.Set String
@@ -48,6 +49,7 @@ data Arg = Reg Word16
          | Mem Arg
          | MemOffset Arg Arg
          | Literal Expr
+         | LongLiteral Expr
          | LabelUse Expr
          | RegList [Word16] Bool
   deriving (Show)
@@ -92,7 +94,7 @@ pComma :: Parser ()
 pComma = ws_ >> char ',' >> ws_
 
 pDAT, pDEFINE, pMACRO, pINCLUDE, pRESERVE, pORG, pFILL :: Parser Asm
-pDAT = fmap (Data . concat) $ stringIC ".dat" *> ws1 *> sepBy pDatValue pComma
+pDAT = fmap (Data . concat) $ stringIC ".dat" *> ws1 *> sepBy pDatValue (try pComma)
 pRESERVE = fmap (Data . flip replicate (Number 0) . fromIntegral) $
     stringIC ".reserve" *> ws1 *> number
 pFILL = fmap Data $ replicate <$>
@@ -141,9 +143,10 @@ pIdent = Ident <$> identifier
 
 identifier :: Parser String
 identifier = (:) <$> letter_ <*> many alphaNum_
-  where letter_   = char '_' <|> letter
-        alphaNum_ = char '_' <|> alphaNum
 
+letter_, alphaNum_ :: Parser Char
+letter_   = char '_' <|> letter
+alphaNum_ = char '_' <|> alphaNum
 
 pLabelDef :: Parser Asm
 pLabelDef = LabelDef <$> (char ':' *> identifier)
@@ -156,7 +159,7 @@ pInstruction = do
   mnemonic <- map toUpper <$> identifier
   case S.member mnemonic knownInstructions of
     -- Regular instruction.
-    True -> Op <$> pure mnemonic <*> (ws1 *> sepBy pArg pComma) <* eol
+    True -> Op <$> pure mnemonic <*> (ws1 *> sepBy pArg (try pComma)) <* eol
     -- Macro.
     False -> do
       ws1
@@ -173,11 +176,14 @@ pSimpleArg = try pPC <|> try pSP <|> try pReg <|> try pLiteral <|>
 
 pReg, pPC, pSP :: Parser Arg
 pReg = (Reg . fromIntegral . read . (:[])) <$> (char 'r' *> digit)
-pPC = stringIC "PC" >> return PC
-pSP = stringIC "SP" >> return SP
+pPC = stringIC "PC" >> notFollowedBy alphaNum_ >> return PC
+pSP = stringIC "SP" >> notFollowedBy alphaNum_ >> return SP
 
 pArg :: Parser Arg
-pArg = try pMemRef <|> try pRegList <|> pSimpleArg
+pArg = try pMemRef <|> try pRegList <|> try pLongLit <|> pSimpleArg
+
+pLongLit :: Parser Arg
+pLongLit = LongLiteral <$> (char '=' *> pValue)
 
 pMemRef :: Parser Arg
 pMemRef = between (char '[' >> ws_) (ws_ >> char ']') $
@@ -407,7 +413,11 @@ ai "LDR" [Reg rd, MemOffset (Reg rb) (Reg ra)] = emit $ 0x5800 .|. regBits [ra, 
 ai "STR" [Reg rd, Mem (Reg rb), Reg ra] = emit $ 0x5400 .|. regBits [ra, rb, rd]
 ai "LDR" [Reg rd, Mem (Reg rb), Reg ra] = emit $ 0x5c00 .|. regBits [ra, rb, rd]
 
--- Format 10: Unused
+-- Format 10: Long literal load
+ai "LDR" [Reg rd, LongLiteral x] = do
+  val <- resolveExpr x
+  emit $ 0x5200 .|. rd
+  emit val
 
 -- Format 11: Load/store with immediate offset
 ai "STR" [Reg rd, MemOffset (Reg rb) (Literal x)] = emit =<< format11 rd rb x
@@ -758,5 +768,10 @@ main = do
   let j = 1 + S.findMax (_used st)
   putStrLn $ "Done, $" ++ showHex j "" ++ "(" ++ show j ++ ") words"
   rs <- genericTake j <$> getElems (_rom st)
-  mapM_ (putStrLn . flip showHex "") rs
+  -- Now write this out as a binary file, big-endian.
+  withBinaryFile "out.bin" WriteMode $ \h -> do
+    mapM_ (\w -> do
+      hPutChar h (chr (fromIntegral w `shiftR` 8))
+      hPutChar h (chr (fromIntegral w .&. 0xff))
+      ) rs
 

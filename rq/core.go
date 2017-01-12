@@ -14,11 +14,11 @@ const (
 	cpsrModeAbort            = 0x18
 	cpsrModeUndefined        = 0x1c
 
-	cpsrN = 0x80
-	cpsrZ = 0x40
-	cpsrC = 0x20
-	cpsrV = 0x10
-	cpsrI = 0x08
+	cpsrN = 0x8000
+	cpsrZ = 0x4000
+	cpsrC = 0x2000
+	cpsrV = 0x1000
+	cpsrI = 0x0800
 
 	vectorReset     = 0x00
 	vectorIRQ       = 0x08
@@ -96,7 +96,14 @@ func (c *rq) Exit() {
 
 // NewRQ returns a freshly created Risque-16 instance.
 func NewRQ() common.CPU {
-	return new(rq)
+	c := new(rq)
+	c.cpsr = cpsrModeUser // Startup state is User mode, interrupts on.
+	c.setFlag(cpsrI, true)
+	c.setMode() // Now the PC and SP pointers are correct.
+
+	c.debug = true
+
+	return c
 }
 
 // Sets the PC, LR and SP pointers appropriately for the current mode.
@@ -165,9 +172,9 @@ func (c *rq) setNZ(x uint16) {
 
 func (c *rq) setFlag(mask uint16, b bool) {
 	if b {
-		c.cpsr &^= mask
-	} else {
 		c.cpsr |= mask
+	} else {
+		c.cpsr &^= mask
 	}
 }
 
@@ -208,10 +215,9 @@ func bits(v, at, len uint16) uint16 {
 
 func signExtend(len, v uint16) int16 {
 	if flag(v, len-1) { // Top bit 1
-		return int16(bits(0xffff, len, 16-len) | bits(v, 0, len))
-	} else {
-		return int16(v)
+		return ((int16(-1) >> len) << len) | int16(bits(v, 0, len))
 	}
+	return int16(v)
 }
 
 func flag(v, at uint16) bool {
@@ -554,10 +560,11 @@ func loadStoreHelper(c *rq, load, post bool, rd, rb, offset uint16) {
 }
 
 // Format 9: Load/store with register offset
-// Format 10: Unused
+// Format 10: Long literals
 func format9Or10(c *rq, op uint16) {
-	if flag(op, 9) { // Format 10, illegal.
-		fmt.Printf("Illegal operation: Format 10 is not implemented.\n")
+	if flag(op, 9) { // Format 10, long literal
+		c.regs[bits(op, 0, 3)] = c.mem[*c.pc]
+		*c.pc++
 		return
 	}
 
@@ -694,6 +701,8 @@ func format17(c *rq, op uint16) {
 // Format 19: SWI (condition code $f)
 func format18Or19(c *rq, op uint16) {
 	offset := signExtend(8, bits(op, 0, 8))
+	fmt.Printf("Conditional branch: original %02x -> %04x = %d\n", bits(op, 0, 8),
+		uint16(offset), int(offset))
 
 	n := c.getFlag(cpsrN)
 	z := c.getFlag(cpsrZ)

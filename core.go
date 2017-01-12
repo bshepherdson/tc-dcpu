@@ -10,6 +10,7 @@ import (
 
 	"emulator/common"
 	"emulator/dcpu"
+	"emulator/rq"
 )
 
 func usage() {
@@ -41,6 +42,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	inputReader = bufio.NewReader(os.Stdin)
+
 	romFile := flag.Arg(0)
 	if romFile == "" {
 		fmt.Printf("Missing required ROM file name!\n")
@@ -65,8 +68,8 @@ func main() {
 	switch *arch {
 	case "dcpu":
 		cpu = dcpu.NewDCPU()
-	//case "rq":
-	//	cpu = rq.NewRQ()
+	case "rq":
+		cpu = rq.NewRQ()
 	default:
 		fmt.Printf("Unknown CPU architecture: %s\n", *arch)
 	}

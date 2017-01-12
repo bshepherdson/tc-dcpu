@@ -13,7 +13,7 @@ var regNames = map[string]uint16{
 	"r7": 7,
 }
 
-var registers = []string{"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "pc", "sp", "lr"}
+var registers = []string{"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "pc", "sp", "lr", "cpsr"}
 
 func (c *rq) Registers() []string {
 	return registers
@@ -30,6 +30,8 @@ func (c *rq) RegByName(name string) (uint16, string, bool) {
 		return *c.sp, "sp", true
 	} else if name == "lr" || name == "LR" {
 		return *c.lr, "lr", true
+	} else if name == "cpsr" || name == "CPSR" {
+		return c.cpsr, "cpsr", true
 	} else {
 		return 0, "", false
 	}

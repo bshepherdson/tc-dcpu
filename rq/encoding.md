@@ -17,7 +17,7 @@ corresponding to operands (`aaa` and `bbb`), shifts (`sss`) and destinations
 7. `01000111ooo_____` - Manipulating `CPSR`
 8. `01001dddXXXXXXXX` - `PC`-relative load
 9. `0101LB0aaabbbddd` - Load/store with register offset
-10. `0101HS1aaabbbddd` - Unused (formerly Load/Store sign-extended byte/halfword)
+10. `0101__1______ddd` - Extra word load
 11. `011BLXXXXXbbbddd` - Load/store with immediate offset
 12. `1000LXXXXXbbbddd` - Unused (formerly load/store halfwords)
 13. `1001LdddXXXXXXXX` - `SP`-relative load/store
@@ -208,9 +208,20 @@ Remember that `PC` points at the next instruction during execution of this one.
 1 cycle. Does **not** set `CPSR` condition codes.
 
 
-### Format 10 - Unused (halfword and byte sign-extended load/store)
+### Format 10 - Extra word load
 
-`0101__1`
+`0101001000000ddd`
+
+- `ddd` - Destination register `Rd`
+
+Loads the next word into `Rd`, and bumps `PC` by 1.
+
+`LDR Rd, =value_or_label`
+
+**NB:** Must be followed by an extra, non-instruction word. The assembler
+usually handles this.
+
+Note that this instruction, counting the data value, is two words long.
 
 
 ### Format 11 - Load/store with immediate offset
@@ -475,4 +486,91 @@ it is based on the value of `label`, or hand-assemble the two-instruction form.)
 
 
 Does not change `CPSR` condition codes.
+
+
+
+
+# Long Loads
+
+Loading 16-bit values is a thing. On real ARM, there's a pseudoinstruction
+ldr Rd, =value
+that figures out an efficient way to load a full-size value.
+
+One efficient option is either setting it based on PC (the address) or doing a
+PC-relative load from somewhere nearby.
+
+A compiler can put a literals table at the end of the function so that unsigned
+PC-relative loads can find them. I have those opcode here too, but it's tricky
+to get right, because I need to ad-hoc find a place to put them, and I don't
+know where the "end" of the function is, unlike the compiler.
+
+I could collect them up in a buffer and look for the next B or POP { ... PC }
+since those always jump away and no one falls through to right after them.
+
+## Possible Approaches
+
+### Two 8-bit literals
+
+```
+mov Rd, #hi
+lsl Rd, Rd, #8
+add Rd, #lo
+```
+
+Three words, three cycles.
+
+### Inlined literal
+
+```
+ldr Rd, [PC, #1]
+b #1
+(literal)
+```
+
+Three words, two cycles.
+
+### New instruction
+
+This would use all of format 12 (`1000xxxxxxxxxxxx`) by defining it thus:
+
+`1000HdddXXXXXXXX`
+
+Which works like the long `BL`: the high 8 bits first with `H=1`, and the low 8
+bits with `H=0`.
+
+Two words, two cycles, but it costs a large chunk of instruction space.
+
+### Ad-hoc table
+
+On seeing a long load, save the literal to a list, and write a PC-relative load.
+
+Then we iterate forward, watching for a `B` or `POP {...PC}` (any others?).
+If we see one of those then we follow it with the cached literals and update
+the load instructions.
+
+If, however, we get too far from the first literal in the table, we write a
+`B #literals` and then write the literals, updating their references.
+
+The upsides here are the efficiency (2 words and ~1 cycle each).
+
+The downsides are the nonlocality, complexity in the assembler, and it can
+insert a random blob into unrelated code, which could screw up tight timing or
+word-counting elsewhere.
+
+### Single new instruction
+
+Alternatively, we could write a new instruction that handles long loads nicely.
+
+It would load the word at PC into the destination register, and then bump PC one
+more. That could reasonably cost 1 cycle, since it's an unconditional branch
+that the prefetch can understand.
+
+That could use the much more limited slice of instruction space in format 10
+(`0101--1---------`), such as:
+
+`0101001000000ddd`
+
+That's two words and one cycle, at the cost of a very small slice of instruction
+space.
+
 
