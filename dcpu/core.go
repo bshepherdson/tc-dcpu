@@ -14,6 +14,7 @@ type dcpu struct {
 	sp          uint16
 	skipping    bool
 	queueing    bool
+	blocked     bool
 	halted      bool
 	debug       bool
 	cycles      int
@@ -61,6 +62,12 @@ func (d *dcpu) DisassembleOp(at uint16) uint16 {
 }
 func (d *dcpu) Debugging() *bool {
 	return &d.debug
+}
+
+func (d *dcpu) HardwareDelay(cycles int) {
+	if d.cycles < cycles {
+		d.cycles = cycles
+	}
 }
 
 func (d *dcpu) DebugPrompt() {
@@ -468,6 +475,10 @@ func (d *dcpu) RunOp() bool {
 	// Tick the hardware devices.
 	for _, dev := range d.devices {
 		dev.Tick(d)
+	}
+
+	if d.blocked {
+		return false
 	}
 
 	if d.cycles > 1 {

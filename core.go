@@ -19,7 +19,7 @@ func usage() {
 
 func dumpDeviceList() {
 	for name, desc := range deviceDescriptions {
-		fmt.Printf("%s\t%s\n", name, desc)
+		fmt.Printf("%-20s %s\n", name, desc)
 	}
 }
 
@@ -27,7 +27,7 @@ var diskFileNames []string
 
 func main() {
 	// Turbo mode for now, not working on the timing.
-	deviceList := flag.String("hw", "keyboard,lem1802,m35fd,clock",
+	deviceList := flag.String("hw", "keyboard,lem1802,m35fd,clock,hsdp-1d",
 		"List of hardware devices. See -dump-hw for a list of devices.")
 	dumpDevices := flag.Bool("dump-hw", false,
 		"Dump a list of hardware devices and exit.")
@@ -44,17 +44,17 @@ func main() {
 
 	inputReader = bufio.NewReader(os.Stdin)
 
+	if *dumpDevices {
+		dumpDeviceList()
+		return
+	}
+
 	romFile := flag.Arg(0)
 	if romFile == "" {
 		fmt.Printf("Missing required ROM file name!\n")
 		fmt.Printf("Usage: %s [options] <ROM file>\n", os.Args[0])
 		flag.PrintDefaults()
 		os.Exit(1)
-	}
-
-	if *dumpDevices {
-		dumpDeviceList()
-		return
 	}
 
 	// Copy the ROM into memory.

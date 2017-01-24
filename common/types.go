@@ -16,6 +16,13 @@ type CPU interface {
 	RegByName(name string) (uint16, string, bool)
 	Registers() []string
 
+	// Hardware may want to block the CPU for some length of time. This gives the
+	// number of cycles to block for. The final delay count is
+	// max(originalDelay, cycles); that is the CPU should be blocked for at least
+	// this long. If something else has already requested a longer delay, they
+	// execute in parallel.
+	HardwareDelay(cycles int)
+
 	RunOp() bool // Runs a single cycle, returning false when nothing happened.
 	Disassemble()
 	DisassembleOp(at uint16) uint16 // Returns length in instructions.

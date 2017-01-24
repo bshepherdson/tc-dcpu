@@ -94,6 +94,12 @@ func (c *rq) Exit() {
 	os.Exit(0)
 }
 
+func (c *rq) HardwareDelay(cycles int) {
+	if c.cycles < cycles {
+		c.cycles = cycles
+	}
+}
+
 // NewRQ returns a freshly created Risque-16 instance.
 func NewRQ() common.CPU {
 	c := new(rq)
