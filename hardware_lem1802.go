@@ -24,7 +24,7 @@ type LEM1802 struct {
 	vram    uint16
 	fontram uint16
 	palram  uint16
-	//border  uint16 TODO: Implement borders
+	border  uint16 // TODO: Actually render the border colour.
 
 	window   *sdl.Window
 	renderer *sdl.Renderer
@@ -46,6 +46,22 @@ func (lem *LEM1802) Interrupt(c common.CPU) {
 		lem.fontram = c.ReadReg(1)
 	case 2: // MAP_PALETTE
 		lem.palram = c.ReadReg(1)
+	case 3: // SET_BORDER_COLOR
+		lem.border = c.ReadReg(1)
+	case 4: // MEM_DUMP_FONT
+		base := c.ReadReg(1)
+		m := c.Memory()
+		for i := uint16(0); i < 256; i++ {
+			m[base+i] = defaultFont[i]
+		}
+		c.HardwareDelay(256) // Spec'd to halt for 256 cycles.
+	case 5: // MEM_DUMP_PALETTE
+		base := c.ReadReg(1)
+		m := c.Memory()
+		for i := uint16(0); i < 16; i++ {
+			m[base+i] = defaultPalette[i]
+		}
+		c.HardwareDelay(16) // Spec'd to halt for 16 cycles.
 	}
 }
 
