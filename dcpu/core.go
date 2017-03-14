@@ -264,56 +264,58 @@ func (d *dcpu) runMainOp(op, a, b uint16) {
 	case 0x02: // ADD b, a
 		av, bv := d.readArgs(a, b)
 		res32 := uint32(av) + uint32(bv)
+		d.writeArg(b, uint16(res32&0xffff))
 		d.ex = 0
 		if res32 >= 0x10000 {
 			d.ex = 1
 		}
-		d.writeArg(b, uint16(res32&0xffff))
 		d.cycles += 2
 
 	case 0x03: // SUB b, a  - b=b-a
 		av, bv := d.readArgs(a, b)
+		d.writeArg(b, bv-av)
 		d.ex = 0
 		if av > bv {
 			d.ex = 0xffff
 		}
-		d.writeArg(b, bv-av)
 		d.cycles += 2
 
 	case 0x04: // MUL b, a
 		av, bv := d.readArgs(a, b)
 		res32 := uint32(av) * uint32(bv)
-		d.ex = uint16(res32 >> 16)
 		d.writeArg(b, uint16(res32&0xffff))
+		d.ex = uint16(res32 >> 16)
 		d.cycles += 2
 
 	case 0x05: // MLI b, a
 		av, bv := d.readArgs(a, b)
 		res32 := int32(int16(av)) * int32(int16(bv))
-		d.ex = uint16(res32 >> 16)
 		d.writeArg(b, uint16(res32&0xffff))
+		d.ex = uint16(res32 >> 16)
 		d.cycles += 2
 
 	case 0x06: // DIV b, a    (b = b/a, or 0)
 		av, bv := d.readArgs(a, b)
 		res := uint16(0)
-		d.ex = 0
+		ex := uint16(0)
 		if av != 0 {
 			res = bv / av
-			d.ex = uint16((uint32(bv) << 16) / uint32(av))
+			ex = uint16((uint32(bv) << 16) / uint32(av))
 		}
 		d.writeArg(b, res)
+		d.ex = ex
 		d.cycles += 3
 
 	case 0x07: // DVI b, a    (b = b/a, or 0)
 		av, bv := d.readArgs(a, b)
 		res := int16(0)
-		d.ex = 0
+		ex := uint16(0)
 		if av != 0 {
 			res = int16(bv) / int16(av)
-			d.ex = uint16((int32(int16(bv)) << 16) / int32(int16(av)))
+			ex = uint16((int32(int16(bv)) << 16) / int32(int16(av)))
 		}
 		d.writeArg(b, uint16(res))
+		d.ex = ex
 		d.cycles += 3
 
 	case 0x08: // MOD b, a
@@ -349,38 +351,38 @@ func (d *dcpu) runMainOp(op, a, b uint16) {
 
 	case 0x0d: // SHR b, a
 		av, bv := d.readArgs(a, b)
-		d.ex = uint16((uint32(bv) << 16) >> av)
 		d.writeArg(b, bv>>av)
+		d.ex = uint16((uint32(bv) << 16) >> av)
 		d.cycles++
 	case 0x0e: // ASR b, a
 		av, bv := d.readArgs(a, b)
-		d.ex = uint16((int32(int16(bv)) << 16) >> av)
 		d.writeArg(b, uint16(int16(bv)>>av))
+		d.ex = uint16((int32(int16(bv)) << 16) >> av)
 		d.cycles++
 	case 0x0f: // SHL b, a
 		av, bv := d.readArgs(a, b)
-		d.ex = uint16((uint32(bv) << av) >> 16)
 		d.writeArg(b, bv<<av)
+		d.ex = uint16((uint32(bv) << av) >> 16)
 		d.cycles++
 
 	case 0x1a: // ADX b, a
 		av, bv := d.readArgs(a, b)
 		res32 := uint32(av) + uint32(bv) + uint32(d.ex)
+		d.writeArg(b, uint16(res32))
 		d.ex = 0
 		if res32&0xffff0000 != 0 {
 			d.ex = 1
 		}
-		d.writeArg(b, uint16(res32))
 		d.cycles += 3
 
 	case 0x1b: // SBX b, a
 		av, bv := d.readArgs(a, b)
 		oldEX := d.ex
+		d.writeArg(b, bv-av+oldEX)
 		d.ex = 0
 		if bv < av+d.ex {
 			d.ex = 0xffff
 		}
-		d.writeArg(b, bv-av+oldEX)
 		d.cycles += 3
 
 	case 0x1e: // STI b, a
@@ -523,6 +525,11 @@ func (d *dcpu) RunOp() bool {
 			d.pc = d.ia
 			d.regs[ra] = msg
 		}
+		d.halted = false
+	}
+
+	if d.halted {
+		return false
 	}
 
 	// Opcode is aaaaaabbbbbooooo
