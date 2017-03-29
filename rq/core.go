@@ -209,7 +209,14 @@ func (c *rq) riOp(op uint16) {
 		c.regs[dest] = c.subHelper(c.regs[dest], lit, false)
 		c.cycles++
 	case 0x6: // MUL
+		res32 := uint32(c.regs[dest]) * uint32(lit)
+		c.setFlag(cpsrC, res32&0xffff0000 != 0)
+		inputNegative := c.regs[dest]&0x8000 != 0
 		c.regs[dest] = c.regs[dest] * lit
+		c.setNZ(c.regs[dest])
+		outputNegative := c.regs[dest]&0x8000 != 0
+		// With the literal always positive, the signs should match.
+		c.setFlag(cpsrV, inputNegative != outputNegative)
 		c.cycles += 4
 	case 0x7: // LSL
 		c.regs[dest] = c.leftShiftHelper(c.regs[dest], lit)
@@ -254,7 +261,23 @@ func (c *rq) riSpecOp(opcode, lit uint16) {
 		c.sp -= lit
 		c.cycles++
 	case 0x2: // SWI #Imm
-		c.addInterrupt(lit)
+		// Some of them are special cases:
+		// 0-7 prints that register.
+		// SWI #1sss0nnn prints a string of length Rn and address Rs
+		// c.addInterrupt(lit)
+		if lit&0x80 != 0 {
+			len := c.regs[lit&7]
+			str := c.regs[(lit>>4)&7]
+			var buf bytes.Buffer
+			for i := uint16(0); i < len; i++ {
+				buf.WriteRune(rune(c.mem[str+i]))
+			}
+			fmt.Printf("%04x: r%d=%d chars at r%d=%04x: \"%s\"\n", c.pc-1, lit&7, len, (lit>>4)&7, str, buf.String())
+		} else {
+			val := c.regs[lit&7]
+			fmt.Printf("%04x: r%d = $%x = %d\n", c.pc-1, lit&7, val, val)
+		}
+
 		c.cycles += 4
 	default:
 		panic(fmt.Sprintf("unknown immediate op: $%x", opcode))
@@ -281,8 +304,18 @@ func (c *rq) rrrOp(op uint16) {
 	case 0x4: // SBC
 		c.regs[rd] = c.subHelper(c.regs[ra], c.regs[rb], true)
 	case 0x5: // MUL
-		c.regs[rd] = c.regs[ra] * c.regs[rb]
+		av := c.regs[ra]
+		bv := c.regs[rb]
+		aNegative := av&0x8000 != 0
+		bNegative := bv&0x8000 != 0
+		c.regs[rd] = av * bv
+		res32 := uint32(av) * uint32(bv)
 		c.setNZ(c.regs[rd])
+		c.setFlag(cpsrC, res32&0xffff0000 != 0)
+		// Output sign should be negative iff one input is negative.
+		// So if the inputs differ, output should be negative.
+		// Otherwise it's a signed overflow.
+		c.setFlag(cpsrV, (aNegative != bNegative) == (c.regs[rd]&0x8000 != 0))
 		c.cycles += 3 // MUL takes 4 total
 	case 0x6: // LSL
 		c.regs[rd] = c.leftShiftHelper(c.regs[ra], c.regs[rb])
@@ -367,7 +400,11 @@ func (c *rq) rOp(opcode, rd uint16) {
 		}
 		c.cycles += 3 // 4 total.
 	case 0x6: // HWI
-		c.devices[c.regs[rd]].Interrupt(c)
+		//fmt.Printf("rd = %d Rd = %d\n", rd, c.regs[rd])
+		n := c.regs[rd]
+		if int(n) < len(c.devices) {
+			c.devices[n].Interrupt(c)
+		}
 		c.cycles += 3 // 4 total.
 	case 0x7: // XSR - exchange SPSR with Rd.
 		c.spsr, c.regs[rd] = c.regs[rd], c.spsr
