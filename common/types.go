@@ -11,6 +11,7 @@ type CPU interface {
 	AddInterrupt(msg uint16)
 	AddDevice(Device)
 	AddBreakpoint(at uint16)
+	Devices() []Device
 	Debugging() *bool
 	DebugPrompt()
 	RegByName(name string) (uint16, string, bool)

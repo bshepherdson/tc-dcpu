@@ -52,6 +52,9 @@ func (c *rq) AddInterrupt(msg uint16) {
 func (c *rq) AddDevice(dev common.Device) {
 	c.devices = append(c.devices, dev)
 }
+func (c *rq) Devices() []common.Device {
+	return c.devices
+}
 func (c *rq) AddBreakpoint(at uint16) {
 	c.breakpoints = append(c.breakpoints, at)
 }

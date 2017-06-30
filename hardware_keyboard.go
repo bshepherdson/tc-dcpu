@@ -15,6 +15,7 @@ type Keyboard struct {
 	tail       int
 	buffer     [256]uint16
 	keysDown   [256]bool
+	fKeys      []int
 }
 
 const inputInterval time.Duration = time.Millisecond * 20
@@ -37,7 +38,7 @@ func (k *Keyboard) Tick(c common.CPU) {
 		case *sdl.QuitEvent:
 			c.Exit()
 		case *sdl.KeyDownEvent:
-			key, index := k.readKey(t.Keysym)
+			key, index := k.readKey(t.Keysym, true)
 
 			if key == 0 {
 				if index != 0 {
@@ -54,11 +55,17 @@ func (k *Keyboard) Tick(c common.CPU) {
 			}
 
 		case *sdl.KeyUpEvent:
-			_, index := k.readKey(t.Keysym)
+			_, index := k.readKey(t.Keysym, false)
 
 			k.keysDown[index] = false
 		}
 	}
+
+	// Drain the fKeys buffer to the CPU.
+	for _, k := range k.fKeys {
+		fKey(c, k)
+	}
+	k.fKeys = k.fKeys[0:0]
 }
 
 var keyCodes = map[sdl.Keycode]uint16{
@@ -102,7 +109,22 @@ var shiftedKeys = map[sdl.Keycode]uint16{
 	sdl.K_QUOTE:        34,  // "
 }
 
-func (k *Keyboard) readKey(sym sdl.Keysym) (uint16, uint32) {
+var fKeys = map[sdl.Keycode]int{
+	sdl.K_F1: 1,
+	sdl.K_F2: 2,
+	sdl.K_F3: 3,
+	sdl.K_F4: 4,
+	sdl.K_F5: 5,
+	sdl.K_F6: 6,
+	sdl.K_F7: 7,
+	sdl.K_F8: 8,
+	sdl.K_F9: 9,
+	sdl.K_F10: 10,
+	sdl.K_F11: 11,
+	sdl.K_F12: 12,
+}
+
+func (k *Keyboard) readKey(sym sdl.Keysym, down bool) (uint16, uint32) {
 	if code, ok := keyCodes[sym.Sym]; ok {
 		if !k.rawMode && 0x90 <= code && code <= 0x92 { // Cooked, and mod key.
 			return 0, uint32(code)
@@ -125,6 +147,8 @@ func (k *Keyboard) readKey(sym sdl.Keysym) (uint16, uint32) {
 			}
 		}
 		return uint16(sym.Sym), uint32(sym.Sym)
+	} else if index, ok := fKeys[sym.Sym]; ok && down {
+		k.fKeys = append(k.fKeys, index)
 	}
 
 	// Unrecognized key. Return 0.

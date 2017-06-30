@@ -53,26 +53,52 @@ each track has 18*512 = 9216 per track = 3.33116 circuits per second
 Note that the disk image is stored big-endian. That is, the first byte of the
 file is the high portion of the first word, and the second byte is the low part.
 */
-func NewM35FD() common.Device {
+func NewM35FD(cpu common.CPU) common.Device {
 	if diskNumber >= len(diskFileNames) {
 		panic("not enough filenames for number of disks")
 	}
 	name := diskFileNames[diskNumber]
 	diskNumber++
 
+	disk := new(M35FD)
+	disk.Open(cpu, name)
+	return disk
+}
+
+func (fd *M35FD) Open(cpu common.CPU, name string) bool {
+	// If there's a previous one, eject first.
+	// That makes sure we really send the no-media interrupt.
+	if fd.file != nil {
+		fd.Eject(cpu)
+	}
+
 	file, err := os.Open(name)
 	if err != nil {
-		panic(fmt.Errorf("could not find file '%s': %v", name, err))
+		fmt.Printf("ERROR: could not find file '%s': %v", name, err)
+		fd.Eject(cpu)
+		return false
 	}
-	disk := new(M35FD)
-	disk.file = file
+	fd.file = file
 	info, err := file.Stat()
 	if err != nil {
-		panic(err)
+		fmt.Printf("ERROR: could not stat disk file: %v", err)
+		fd.Eject(cpu)
+		return false
 	}
-	disk.size = info.Size()
-	disk.state = floppyStateReady
-	return disk
+	fd.size = info.Size()
+	fd.state = floppyStateReady
+	fd.maybeInterrupt(cpu)
+	return true
+}
+
+func (fd *M35FD) Eject(cpu common.CPU) {
+	if fd.file != nil {
+		fd.file.Close()
+	}
+	fd.file = nil
+	fd.size = 0
+	fd.state = floppyStateNoMedia
+	fd.maybeInterrupt(cpu)
 }
 
 func (fd *M35FD) DeviceDetails() (uint32, uint16, uint32) {
@@ -88,6 +114,7 @@ func (fd *M35FD) Interrupt(c common.CPU) {
 
 	case 1: // Set interrupt
 		fd.intMessage = c.ReadReg(3)
+		fd.maybeInterrupt(c)
 
 	case 2: // Read sector
 		if fd.state == floppyStateNoMedia {
@@ -107,6 +134,7 @@ func (fd *M35FD) Interrupt(c common.CPU) {
 			fd.addr = c.ReadReg(4)
 			c.WriteReg(1, 1)
 			fd.countdown = seekTime(oldSector, fd.sector)
+			fd.maybeInterrupt(c)
 		} else {
 			fd.lastError = floppyErrorBadSector
 			fd.maybeInterrupt(c)
@@ -134,6 +162,7 @@ func (fd *M35FD) Interrupt(c common.CPU) {
 			fd.sector = c.ReadReg(3)
 			fd.addr = c.ReadReg(4)
 			c.WriteReg(1, 1)
+			fd.maybeInterrupt(c)
 			fd.countdown = seekTime(oldSector, fd.sector)
 		} else {
 			fd.lastError = floppyErrorBadSector

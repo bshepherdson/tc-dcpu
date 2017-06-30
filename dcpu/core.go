@@ -54,6 +54,9 @@ func (d *dcpu) AddBreakpoint(at uint16) {
 func (d *dcpu) AddDevice(dev common.Device) {
 	d.devices = append(d.devices, dev)
 }
+func (d *dcpu) Devices() []common.Device {
+	return d.devices
+}
 func (d *dcpu) Disassemble() {
 	disasmROM(d.Memory())
 }

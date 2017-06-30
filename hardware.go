@@ -2,12 +2,12 @@ package main
 
 import "emulator/common"
 
-var deviceTypes = map[string]func() common.Device{
-	"keyboard": func() common.Device { return new(Keyboard) },
-	"lem1802":  func() common.Device { return NewLEM1802() },
-	"clock":    func() common.Device { return NewClock() },
-	"m35fd":    func() common.Device { return NewM35FD() },
-	"hsdp-1d":  func() common.Device { return NewHSDP1D() },
+var deviceTypes = map[string]func(cpu common.CPU) common.Device{
+	"keyboard": func(cpu common.CPU) common.Device { return new(Keyboard) },
+	"lem1802":  func(cpu common.CPU) common.Device { return NewLEM1802() },
+	"clock":    func(cpu common.CPU) common.Device { return NewClock() },
+	"m35fd":    func(cpu common.CPU) common.Device { return NewM35FD(cpu) },
+	"hsdp-1d":  func(cpu common.CPU) common.Device { return NewHSDP1D() },
 }
 
 var deviceDescriptions = map[string]string{

@@ -91,7 +91,7 @@ func main() {
 	diskFileNames = strings.Split(*disks, ",")
 	for _, d := range deviceNames {
 		if dt, ok := deviceTypes[d]; ok {
-			cpu.AddDevice(dt())
+			cpu.AddDevice(dt(cpu))
 		} else {
 			fmt.Printf("Unknown device: %s\n", d)
 			dumpDeviceList()
@@ -122,6 +122,52 @@ func debugConsole(c common.CPU) {
 		fmt.Printf("Commands:\n")
 		for key, dbg := range common.DebugCommands {
 			fmt.Printf("%s\t%s\n", key, dbg.Describe())
+		}
+	}
+}
+
+func fKey(c common.CPU, key int) {
+	switch key {
+	case 1: // F1 - help
+		fmt.Println("=== Emulator commands ===")
+		fmt.Println("F1\tShow this help")
+		fmt.Println("F2\tStart debugging")
+		fmt.Println("F3\tResume running")
+		fmt.Println("F4\tTurbo speed toggle")
+		fmt.Println("F6\tEject/insert disk")
+
+	case 2: // F2 - start debugging
+		*c.Debugging() = true
+
+	case 3: // F3 - stop debugging
+		*c.Debugging() = false
+
+	case 4: // F4 - toggle turbo
+		fmt.Println("(Turbo not implemented - always at max speed)")
+
+	case 6: // F6 - eject/insert disk
+		var drive *M35FD
+		for _, d := range c.Devices() {
+			switch d2 := d.(type) {
+			case *M35FD:
+				drive = d2
+			}
+		}
+		if drive == nil {
+			fmt.Println("No disk device found.")
+			return
+		}
+
+		if drive.file != nil {
+			drive.Eject(c)
+			fmt.Println("Disk ejected. F6 again to insert.")
+		} else {
+			fmt.Println("Enter the new disk location.")
+			var newLocation string
+			fmt.Scanln(&newLocation)
+			if drive.Open(c, newLocation) {
+				fmt.Println("Disk loaded successfully")
+			}
 		}
 	}
 }
