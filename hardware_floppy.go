@@ -7,9 +7,17 @@ import (
 	"os"
 )
 
+// TODO: The disk geometry changed in the spec, I should re-work the speeds and
+// update the calculations.
 const sectorSize = 1024
 const cyclesPerSector = 1666 // 200 RPM, 18 sectors/track = 1666 cycles/sector
 const cyclesPerTrack = 2400  // 2.4ms per track.
+
+// TODO: Have some scheme for loading hardware that indicates the size of the
+// floppies, rather than just assuming they're max-size.
+// High-density double sided, the largest disk in the spec.
+// 448 blocks of 512 words each.
+const diskSize = 448 * sectorSize
 
 const (
 	floppyStateNoMedia uint16 = 0
@@ -72,7 +80,7 @@ func (fd *M35FD) Open(cpu common.CPU, name string) bool {
 		fd.Eject(cpu)
 	}
 
-	file, err := os.Open(name)
+	file, err := os.OpenFile(name, os.O_RDWR, 0755)
 	if err != nil {
 		fmt.Printf("ERROR: could not find file '%s': %v", name, err)
 		fd.Eject(cpu)
@@ -125,7 +133,7 @@ func (fd *M35FD) Interrupt(c common.CPU) {
 			fd.lastError = floppyErrorBusy
 			fd.maybeInterrupt(c)
 			c.WriteReg(1, 0)
-		} else if sectorSize*int64(c.ReadReg(3)) < fd.size {
+		} else if sectorSize*int64(c.ReadReg(3)) < diskSize {
 			fd.state = floppyStateBusy
 			fd.writing = false
 			fd.busy = true
@@ -154,7 +162,7 @@ func (fd *M35FD) Interrupt(c common.CPU) {
 			fd.lastError = floppyErrorProtected
 			fd.maybeInterrupt(c)
 			c.WriteReg(1, 0)
-		} else if sectorSize*int64(c.ReadReg(3)) < fd.size {
+		} else if sectorSize*int64(c.ReadReg(3)) < diskSize {
 			fd.writing = true
 			fd.state = floppyStateBusy
 			fd.busy = true
@@ -225,6 +233,8 @@ func (fd *M35FD) Tick(c common.CPU) {
 		_, err := fd.file.WriteAt(bytes, int64(fd.sector)*1024)
 		if err != nil {
 			fd.lastError = floppyErrorBroken
+			fmt.Printf("Write error: %v\n", err)
+
 		}
 	} else {
 		mem := c.Memory()[fd.addr : fd.addr+512]
