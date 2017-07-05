@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"emulator/common"
 	"emulator/dcpu"
@@ -24,6 +25,7 @@ func dumpDeviceList() {
 }
 
 var diskFileNames []string
+var turbo bool = false
 
 func main() {
 	// Turbo mode for now, not working on the timing.
@@ -143,7 +145,12 @@ func fKey(c common.CPU, key int) {
 		*c.Debugging() = false
 
 	case 4: // F4 - toggle turbo
-		fmt.Println("(Turbo not implemented - always at max speed)")
+		turbo = !turbo
+		if turbo {
+			fmt.Println("Turbo enabled: speed unlimited")
+		} else {
+			fmt.Println("Turbo disabled: running at 100kHz")
+		}
 
 	case 6: // F6 - eject/insert disk
 		var drive *M35FD
@@ -172,11 +179,45 @@ func fKey(c common.CPU, key int) {
 	}
 }
 
+func delay(in <-chan bool, out chan<- bool) {
+	for {
+		die := <-in
+		if die {
+			return
+		}
+		time.Sleep(10 * time.Microsecond)
+		out <- true
+	}
+}
+
 func run(c common.CPU) {
+	// Construct a "delay circuit": a goroutine that receives on a channel, waits
+	// one cycle (100kHz, so waiting 10us) and then sends on another channel.
+	/*
+		in := make(chan bool)
+		out := make(chan bool)
+		go delay(in, out)
+		defer func() { in <- true }()
+
+		cycles := 0
+		start := time.Now()
+
+	*/
+
+	// Ticks at 100Hz, so I run 1000 cycles per tick.
+	ticker := time.Tick(10 * time.Millisecond)
+	cycles := 0
+
 	// Repeatedly try to run the CPU operation, stopping on a debug to show the
 	// console.
 	for {
 		for !*c.Debugging() {
+			cycles++
+			if !turbo && cycles >= 1000 {
+				_ = <-ticker
+				cycles = 0
+			}
+
 			c.RunOp()
 		}
 
