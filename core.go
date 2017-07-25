@@ -36,6 +36,7 @@ func main() {
 	arch := flag.String("arch", "dcpu", "CPU architecture. 'dcpu' and 'rq' are supported")
 	disks := flag.String("disk", "", "Filenames of the disk to load (comma-separated.")
 	disassemble := flag.Bool("disassemble", false, "Disassemble the ROM to stdout")
+	turboFlag := flag.Bool("turbo", false, "True to start in turbo (unlimited speed) mode. Default: false, 100kHz.")
 
 	flag.Parse()
 	if !flag.Parsed() {
@@ -100,6 +101,8 @@ func main() {
 			return
 		}
 	}
+
+	turbo = *turboFlag
 
 	run(cpu)
 }
