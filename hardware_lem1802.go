@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"runtime"
 	"time"
-	"unsafe"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -29,7 +28,6 @@ type LEM1802 struct {
 	window   *sdl.Window
 	renderer *sdl.Renderer
 	texture  *sdl.Texture
-	pixels   unsafe.Pointer
 
 	lastFrame time.Time
 }
@@ -68,8 +66,7 @@ func (lem *LEM1802) Interrupt(c common.CPU) {
 func (lem *LEM1802) Tick(c common.CPU) {
 	// TODO: When the display gets disabled, paint it black.
 	if lem.vram != 0 && time.Since(lem.lastFrame) > 50*time.Millisecond {
-		var pitch int
-		err := lem.texture.Lock(nil, &lem.pixels, &pitch)
+		pixels, pitch, err := lem.texture.Lock(nil)
 		if pitch != widthPixels*4 {
 			panic(fmt.Errorf("unexpected pitch: %d", pitch))
 		}
@@ -89,7 +86,7 @@ func (lem *LEM1802) Tick(c common.CPU) {
 
 		for i := 0; i < heightChars; i++ {
 			for j := 0; j < widthChars; j++ {
-				lem.writeChar(&palette, &font, vram[i*widthChars+j], i, j)
+				lem.writeChar(pixels, &palette, &font, vram[i*widthChars+j], i, j)
 			}
 		}
 
@@ -110,7 +107,7 @@ func (lem *LEM1802) Tick(c common.CPU) {
 	}
 }
 
-func (lem *LEM1802) writeChar(palette, font *[]uint16, char uint16, row, col int) {
+func (lem *LEM1802) writeChar(pixels []byte, palette, font *[]uint16, char uint16, row, col int) {
 	c := char & 0x7f // Just the actual character value.
 	fontLo := (*font)[c*2]
 	fontHi := (*font)[c*2+1]
@@ -122,41 +119,42 @@ func (lem *LEM1802) writeChar(palette, font *[]uint16, char uint16, row, col int
 	fg := (*palette)[(char>>12)&0xf]
 	bg := (*palette)[(char>>8)&0xf]
 
-	lem.writeColumn(fg, bg, x, y, uint8(fontLo>>8))
-	lem.writeColumn(fg, bg, x+1, y, uint8(fontLo))
-	lem.writeColumn(fg, bg, x+2, y, uint8(fontHi>>8))
-	lem.writeColumn(fg, bg, x+3, y, uint8(fontHi))
+	lem.writeColumn(pixels, fg, bg, x, y, uint8(fontLo>>8))
+	lem.writeColumn(pixels, fg, bg, x+1, y, uint8(fontLo))
+	lem.writeColumn(pixels, fg, bg, x+2, y, uint8(fontHi>>8))
+	lem.writeColumn(pixels, fg, bg, x+3, y, uint8(fontHi))
 }
 
-func (lem *LEM1802) writeColumn(fg, bg uint16, x, y int, pixels uint8) {
+func (lem *LEM1802) writeColumn(pixels []byte, fg, bg uint16, x, y int, px uint8) {
 	for i := uint(0); i < 8; i++ {
-		b := (pixels >> i) & 1
+		b := (px >> i) & 1
 		c := fg
 		if b == 0 {
 			c = bg
 		}
-		lem.writePixel(c, x, y+int(i))
+		lem.writePixel(pixels, c, x, y+int(i))
 	}
 }
 
 // Turns a DCPU colour value and writes it into the texture.
 // DCPU format is 0000rrrrggggbbbb, texture's format is ARGB.
-func (lem *LEM1802) writePixel(c uint16, x, y int) {
+func (lem *LEM1802) writePixel(pixels []byte, c uint16, x, y int) {
 	offset := widthPixels*4*uintptr(y) + 4*uintptr(x)
 	if offset < 0 || offset > (widthPixels*heightPixels*4) {
 		panic(fmt.Errorf("drawing outside legal region: (%d, %d) = %x\n", x, y, offset))
 	}
-	p := unsafe.Pointer(uintptr(lem.pixels) + offset)
 
-	r := (uint32(c) >> 8) & 0xf
+	r := (c >> 8) & 0xf
 	r = r | (r << 4)
-	g := (uint32(c) >> 4) & 0xf
+	g := (c >> 4) & 0xf
 	g = g | (g << 4)
-	b := uint32(c) & 0xf
+	b := c & 0xf
 	b = b | (b << 4)
 
-	converted := (0xff000000) | (r << 16) | (g << 8) | b
-	*((*uint32)(p)) = converted
+	pixels[offset+3] = 0xff
+	pixels[offset+2] = byte(r)
+	pixels[offset+1] = byte(g)
+	pixels[offset] = byte(b)
 }
 
 func (lem *LEM1802) Cleanup() {}
