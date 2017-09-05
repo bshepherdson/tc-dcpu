@@ -8,6 +8,7 @@ var deviceTypes = map[string]func(cpu common.CPU) common.Device{
 	"clock":    func(cpu common.CPU) common.Device { return NewClock() },
 	"m35fd":    func(cpu common.CPU) common.Device { return NewM35FD(cpu) },
 	"hsdp-1d":  func(cpu common.CPU) common.Device { return NewHSDP1D() },
+	"imva":     func(cpu common.CPU) common.Device { return NewIMVA() },
 }
 
 var deviceDescriptions = map[string]string{
@@ -16,4 +17,5 @@ var deviceDescriptions = map[string]string{
 	"keyboard": "Generic keyboard",
 	"clock":    "Generic clock",
 	"hsdp-1d":  "Chartronics High Speed Data Printer",
+	"imva":     "Interlaced Monochrome Videographic Adaptor",
 }
