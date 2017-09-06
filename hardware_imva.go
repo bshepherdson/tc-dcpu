@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	imvaScaleFactor  int = 2
+	imvaScaleFactor  int = 3
 	imvaWidthPixels      = 320
 	imvaHeightPixels     = 200
 	memMapSize           = 4000 // Each word gives an 8x2 region: 40 wide, 100 tall.
@@ -37,7 +37,7 @@ type IMVA struct {
 }
 
 func (imva *IMVA) DeviceDetails() (uint32, uint16, uint32) {
-	return 0x59ea5742, 0x0538, 0x75f6a113
+	return 0x75f6a113, 0x0538, 0x59ea5742
 }
 
 func (imva *IMVA) Interrupt(c common.CPU) {
