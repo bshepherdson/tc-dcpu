@@ -62,6 +62,9 @@ func (p *HSDP1D) Tick(d common.CPU) {
 	if p.counter == 0 {
 		p.printLine()
 		p.counter = ticksPerLine
+		if Turbo {
+			p.counter = 1
+		}
 	}
 }
 
@@ -74,7 +77,9 @@ func NewHSDP1D() common.Device {
 }
 
 func (p *HSDP1D) queueLine(d common.CPU, start, count uint16) {
-	p.buffer = append(p.buffer, &bufEntry{start, d.Memory()[start : start+count]})
+	buf := make([]uint16, count, count)
+	copy(buf, d.Memory()[start:start+count])
+	p.buffer = append(p.buffer, &bufEntry{start, buf})
 }
 
 func (b *bufEntry) pop(count uint16) ([]uint16, bool) {

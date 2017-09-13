@@ -25,7 +25,7 @@ func dumpDeviceList() {
 }
 
 var diskFileNames []string
-var turbo bool = false
+var Turbo bool = false
 
 func main() {
 	// Turbo mode for now, not working on the timing.
@@ -94,6 +94,7 @@ func main() {
 	diskFileNames = strings.Split(*disks, ",")
 	for _, d := range deviceNames {
 		if dt, ok := deviceTypes[d]; ok {
+			fmt.Printf("Loading device: %s\n", d)
 			cpu.AddDevice(dt(cpu))
 		} else {
 			fmt.Printf("Unknown device: %s\n", d)
@@ -102,7 +103,7 @@ func main() {
 		}
 	}
 
-	turbo = *turboFlag
+	Turbo = *turboFlag
 
 	run(cpu)
 }
@@ -148,8 +149,8 @@ func fKey(c common.CPU, key int) {
 		*c.Debugging() = false
 
 	case 4: // F4 - toggle turbo
-		turbo = !turbo
-		if turbo {
+		Turbo = !Turbo
+		if Turbo {
 			fmt.Println("Turbo enabled: speed unlimited")
 		} else {
 			fmt.Println("Turbo disabled: running at 100kHz")
@@ -216,7 +217,7 @@ func run(c common.CPU) {
 	for {
 		for !*c.Debugging() {
 			cycles++
-			if !turbo && cycles >= 1000 {
+			if !Turbo && cycles >= 1000 {
 				_ = <-ticker
 				cycles = 0
 			}
