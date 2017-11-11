@@ -48,11 +48,7 @@ func (k *Keyboard) Tick(c common.CPU) {
 			}
 
 			k.keysDown[index] = true
-			k.buffer[k.tail] = key
-			k.tail++
-			if k.tail >= 256 {
-				k.tail -= 256
-			}
+			k.Enqueue(key)
 
 		case *sdl.KeyUpEvent:
 			_, index := k.readKey(t.Keysym, false)
@@ -66,6 +62,14 @@ func (k *Keyboard) Tick(c common.CPU) {
 		fKey(c, k)
 	}
 	k.fKeys = k.fKeys[0:0]
+}
+
+func (k *Keyboard) Enqueue(key uint16) {
+	k.buffer[k.tail] = key
+	k.tail++
+	if k.tail >= 256 {
+		k.tail -= 256
+	}
 }
 
 var keyCodes = map[sdl.Keycode]uint16{
@@ -110,15 +114,15 @@ var shiftedKeys = map[sdl.Keycode]uint16{
 }
 
 var fKeys = map[sdl.Keycode]int{
-	sdl.K_F1: 1,
-	sdl.K_F2: 2,
-	sdl.K_F3: 3,
-	sdl.K_F4: 4,
-	sdl.K_F5: 5,
-	sdl.K_F6: 6,
-	sdl.K_F7: 7,
-	sdl.K_F8: 8,
-	sdl.K_F9: 9,
+	sdl.K_F1:  1,
+	sdl.K_F2:  2,
+	sdl.K_F3:  3,
+	sdl.K_F4:  4,
+	sdl.K_F5:  5,
+	sdl.K_F6:  6,
+	sdl.K_F7:  7,
+	sdl.K_F8:  8,
+	sdl.K_F9:  9,
 	sdl.K_F10: 10,
 	sdl.K_F11: 11,
 	sdl.K_F12: 12,

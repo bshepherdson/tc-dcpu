@@ -37,6 +37,7 @@ func main() {
 	disks := flag.String("disk", "", "Filenames of the disk to load (comma-separated.")
 	disassemble := flag.Bool("disassemble", false, "Disassemble the ROM to stdout")
 	turboFlag := flag.Bool("turbo", false, "True to start in turbo (unlimited speed) mode. Default: false, 100kHz.")
+	script := flag.String("script", "", "Script file to run.")
 
 	flag.Parse()
 	if !flag.Parsed() {
@@ -104,6 +105,10 @@ func main() {
 	}
 
 	Turbo = *turboFlag
+
+	if *script != "" {
+		RunScript(cpu, *script)
+	}
 
 	run(cpu)
 }
