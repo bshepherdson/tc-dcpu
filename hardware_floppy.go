@@ -18,6 +18,9 @@ const cyclesPerTrack = 2400  // 2.4ms per track.
 // High-density double sided, the largest disk in the spec.
 // 448 blocks of 512 words each.
 const diskSize = 448 * sectorSize
+const diskSides = uint16(2)
+const diskTracks = uint16(32)
+const diskSectorsPerTrack = uint16(7)
 
 const (
 	floppyStateNoMedia uint16 = 0
@@ -177,6 +180,11 @@ func (fd *M35FD) Interrupt(c common.CPU) {
 			fd.maybeInterrupt(c)
 			c.WriteReg(1, 0)
 		}
+
+	case 4: // Disk geometry
+		c.WriteReg(3, diskSides)
+		c.WriteReg(4, diskTracks)
+		c.WriteReg(5, diskSectorsPerTrack)
 	}
 }
 
