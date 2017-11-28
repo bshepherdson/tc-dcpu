@@ -1,7 +1,7 @@
 package main
 
 import (
-	"emulator/common"
+	"tc-dcpu/common"
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"

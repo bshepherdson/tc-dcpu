@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"emulator/common"
+	"tc-dcpu/common"
 )
 
 type dcpu struct {

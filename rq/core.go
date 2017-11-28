@@ -2,9 +2,9 @@ package rq
 
 import (
 	"bytes"
-	"emulator/common"
 	"fmt"
 	"os"
+	"tc-dcpu/common"
 )
 
 const (

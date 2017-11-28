@@ -1,8 +1,8 @@
 package main
 
 import (
-	"emulator/common"
 	"fmt"
+	"tc-dcpu/common"
 )
 
 type HSDP1D struct {

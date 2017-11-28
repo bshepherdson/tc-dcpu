@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"emulator/common"
-	"emulator/dcpu"
-	"emulator/rq"
+	"tc-dcpu/common"
+	"tc-dcpu/dcpu"
+	"tc-dcpu/rq"
 )
 
 func usage() {

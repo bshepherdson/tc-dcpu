@@ -1,10 +1,10 @@
 package main
 
 import (
-	"emulator/common"
 	"fmt"
 	"io"
 	"os"
+	"tc-dcpu/common"
 )
 
 // TODO: The disk geometry changed in the spec, I should re-work the speeds and

@@ -1,6 +1,6 @@
 package main
 
-import "emulator/common"
+import "tc-dcpu/common"
 
 var deviceTypes = map[string]func(cpu common.CPU) common.Device{
 	"keyboard": func(cpu common.CPU) common.Device { return new(Keyboard) },
