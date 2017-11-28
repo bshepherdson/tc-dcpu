@@ -37,23 +37,24 @@ func (k *Keyboard) Tick(c common.CPU) {
 		switch t := event.(type) {
 		case *sdl.QuitEvent:
 			c.Exit()
-		case *sdl.KeyDownEvent:
-			key, index := k.readKey(t.Keysym, true)
+		case *sdl.KeyboardEvent:
+			if t.Type == sdl.KEYDOWN {
+				key, index := k.readKey(t.Keysym, true)
 
-			if key == 0 {
-				if index != 0 {
-					k.keysDown[index] = true
+				if key == 0 {
+					if index != 0 {
+						k.keysDown[index] = true
+					}
+					return
 				}
-				return
+
+				k.keysDown[index] = true
+				k.Enqueue(key)
+			} else {
+				_, index := k.readKey(t.Keysym, false)
+
+				k.keysDown[index] = false
 			}
-
-			k.keysDown[index] = true
-			k.Enqueue(key)
-
-		case *sdl.KeyUpEvent:
-			_, index := k.readKey(t.Keysym, false)
-
-			k.keysDown[index] = false
 		}
 	}
 

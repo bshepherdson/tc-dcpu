@@ -141,7 +141,8 @@ func NewIMVA() common.Device {
 	runtime.LockOSThread() // Latch this goroutine to the same thread for SDL.
 	sdl.Init(sdl.INIT_VIDEO)
 	window, err := sdl.CreateWindow("IMVA", sdl.WINDOWPOS_UNDEFINED,
-		sdl.WINDOWPOS_UNDEFINED, imvaWidthPixels*imvaScaleFactor, imvaHeightPixels*imvaScaleFactor, sdl.WINDOW_SHOWN)
+		sdl.WINDOWPOS_UNDEFINED, int32(imvaWidthPixels*imvaScaleFactor),
+		int32(imvaHeightPixels*imvaScaleFactor), sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(fmt.Errorf("failed to create window: %v", err))
 	}

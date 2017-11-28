@@ -167,7 +167,8 @@ func NewLEM1802() common.Device {
 	runtime.LockOSThread() // Latch this goroutine to the same thread for SDL.
 	sdl.Init(sdl.INIT_VIDEO)
 	window, err := sdl.CreateWindow("LEM 1802", sdl.WINDOWPOS_UNDEFINED,
-		sdl.WINDOWPOS_UNDEFINED, widthPixels*scaleFactor, heightPixels*scaleFactor, sdl.WINDOW_SHOWN)
+		sdl.WINDOWPOS_UNDEFINED, int32(widthPixels*scaleFactor),
+		int32(heightPixels*scaleFactor), sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(fmt.Errorf("failed to create window: %v", err))
 	}
