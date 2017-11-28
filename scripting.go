@@ -1,12 +1,12 @@
 package main
 
 import (
-	"emulator/common"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
+	"tc-dcpu/common"
 )
 
 type command func(c common.CPU, args []string)
