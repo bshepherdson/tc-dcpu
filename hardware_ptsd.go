@@ -15,17 +15,25 @@ const (
 	ptsdHeightPixels int = 96
 )
 
+type tileSpec struct {
+	x, y    int
+	tileNum uint16
+}
+
 type PTSD struct {
 	tileRAM    uint16
 	bgMapRAM   uint16
 	paletteRAM uint16
 	spriteRAM  uint16
 
-	colorDepth int
-	tileWidth  int
-	tileHeight int
-	interrupt  uint16
+	smallBackground bool
+	wideSprites     bool
+	tallSprites     bool
+	colorDepth      int
+	tileWidth       int
+	tileHeight      int
 
+	interrupt uint16
 	bgPalette uint16
 	bgScrollX uint16
 	bgScrollY uint16
@@ -38,14 +46,18 @@ type PTSD struct {
 }
 
 func (p *PTSD) DeviceDetails() (uint32, uint16, uint32) {
-	return 0x73f747c2, 1, 0x8b43a166
+	return 0x73f747c2, 2, 0x8b43a166
 }
 
 func (p *PTSD) Interrupt(c common.CPU) {
 	switch c.ReadReg(0) {
 	case 0: // SET_CONFIG
 		b := c.ReadReg(1)
-		p.colorDepth = 1 << uint((b>>4)-1)
+		p.smallBackground = b&0x1000 != 0
+		p.wideSprites = b&0x0200 != 0
+		p.tallSprites = b&0x0100 != 0
+
+		p.colorDepth = 1 << uint(((b>>4)&3)-1)
 		p.tileWidth = 4
 		p.tileHeight = 4
 		if b&2 != 0 {
@@ -80,6 +92,9 @@ func (p *PTSD) Interrupt(c common.CPU) {
 		p.paletteRAM = 0
 		p.spriteRAM = 0
 
+		p.smallBackground = false
+		p.tallSprites = false
+		p.wideSprites = false
 		p.colorDepth = 4
 		p.tileWidth = 4
 		p.tileHeight = 4
@@ -101,7 +116,11 @@ func (p *PTSD) tileRAMSize() uint16 {
 }
 
 func (p *PTSD) bgMapSize() uint16 {
-	return uint16((256 / p.tileWidth) * (256 / p.tileHeight))
+	base := 256
+	if p.smallBackground {
+		base = 128
+	}
+	return uint16((base/p.tileWidth)*(base/p.tileHeight)) / 2
 }
 
 func (p *PTSD) paletteSize() uint16 {
@@ -128,6 +147,10 @@ func (p *PTSD) Tick(c common.CPU) {
 
 		// Bottommost layer: BG colour 0 (even if the BG isn't enabled).
 		bgp := palettes[p.bgPalette*p.paletteSize() : (p.bgPalette+1)*p.paletteSize()]
+		if len(bgp) <= 0 {
+			fmt.Printf("bgp %v, palette size %d, bgPalette %d\n", bgp, p.paletteSize(), p.bgPalette)
+		}
+
 		for i := 0; i < ptsdWidthPixels; i++ {
 			for j := 0; j < ptsdHeightPixels; j++ {
 				p.paint(pixels, i, j, bgp[0])
@@ -166,19 +189,22 @@ func (p *PTSD) Tick(c common.CPU) {
 
 		p.renderer.Present()
 		p.lastFrame = time.Now()
+		if p.interrupt != 0 {
+			c.AddInterrupt(p.interrupt)
+		}
 	}
 }
 
 func (p *PTSD) paintSprites(pixels []byte, tiles, palettes, sprites []uint16, under bool) {
 	// We iterate through the sprites highest to lowest, painting those that are
-	// visible and under the background.
+	// visible and over/under the background.
 	for i := 127; i >= 0; i-- {
 		s1 := sprites[2*i]
 		s2 := sprites[2*i+1]
-		show := s1&0x8000 != 0
 		u := s1&0x4000 != 0
-		if !show || u != under {
-			return
+		large := s1&0x8000 != 0
+		if u != under {
+			continue
 		}
 
 		// Still here, so paint it.
@@ -187,32 +213,72 @@ func (p *PTSD) paintSprites(pixels []byte, tiles, palettes, sprites []uint16, un
 		palNum := (s1 & 0x0f00) >> 8
 		tileNum := s1 & 0xff
 
-		baseY := int(s2>>8) - 7
-		baseX := int(s2&0xff) - 7
+		baseY := int((s2 >> 8) & 0xff)
+		baseX := int(s2 & 0xff)
 
-		for x := 0; x < p.tileWidth; x++ {
-			for y := 0; y < p.tileHeight; y++ {
-				realX := baseX + x
-				realY := baseY + y
-				if realX < 0 || realY < 0 || realX >= ptsdWidthPixels || realY >= ptsdHeightPixels {
-					continue
-				}
+		tileSpecs := []*tileSpec{&tileSpec{baseX, baseY, tileNum}}
 
-				tx := x
-				ty := y
-				if vFlip {
-					ty = p.tileHeight - ty - 1
-				}
-				if hFlip {
-					tx = p.tileWidth - tx - 1
-				}
-
-				c := p.tileAt(tiles, tileNum, tx, ty) // Color number at this point.
-				if c == 0 {
-					continue // Transparent, so skip it.
-				}
-				p.paint(pixels, realX, realY, palettes[palNum*p.paletteSize()+c])
+		if large {
+			if p.wideSprites {
+				tileNum++
+				tileSpecs = append(tileSpecs, &tileSpec{baseX + p.tileWidth, baseY, tileNum})
 			}
+
+			if p.tallSprites {
+				tileNum++
+				tileSpecs = append(tileSpecs, &tileSpec{baseX, baseY + p.tileHeight, tileNum})
+
+				if p.wideSprites {
+					tileSpecs = append(tileSpecs, &tileSpec{baseX + p.tileWidth, baseY + p.tileHeight, tileNum + 1})
+				}
+			}
+
+			// Now handle the flips.
+			if vFlip && p.tallSprites && p.wideSprites {
+				tileSpecs[0].tileNum, tileSpecs[2].tileNum = tileSpecs[2].tileNum, tileSpecs[0].tileNum
+				tileSpecs[1].tileNum, tileSpecs[3].tileNum = tileSpecs[3].tileNum, tileSpecs[1].tileNum
+			} else if vFlip && p.tallSprites {
+				tileSpecs[0].tileNum, tileSpecs[1].tileNum = tileSpecs[1].tileNum, tileSpecs[0].tileNum
+			}
+
+			if hFlip && p.wideSprites {
+				tileSpecs[0].tileNum, tileSpecs[1].tileNum = tileSpecs[1].tileNum, tileSpecs[0].tileNum
+				fmt.Printf("flipping %v %v\n", tileSpecs[0], tileSpecs[1])
+				if p.tallSprites {
+					tileSpecs[2].tileNum, tileSpecs[3].tileNum = tileSpecs[3].tileNum, tileSpecs[2].tileNum
+				}
+			}
+		}
+
+		for _, spec := range tileSpecs {
+			p.paintSpriteTile(pixels, tiles, palettes, palNum, spec.tileNum, vFlip, hFlip, spec.x, spec.y)
+		}
+	}
+}
+
+func (p *PTSD) paintSpriteTile(pixels []byte, tiles, palettes []uint16, palNum, tileNum uint16, vFlip, hFlip bool, baseX, baseY int) {
+	for x := 0; x < p.tileWidth; x++ {
+		for y := 0; y < p.tileHeight; y++ {
+			realX := (baseX + x) & 0xff
+			realY := (baseY + y) & 0xff
+			if realX < 0 || realY < 0 || realX >= ptsdWidthPixels || realY >= ptsdHeightPixels {
+				continue
+			}
+
+			tx := x
+			ty := y
+			if vFlip {
+				ty = p.tileHeight - ty - 1
+			}
+			if hFlip {
+				tx = p.tileWidth - tx - 1
+			}
+
+			c := p.tileAt(tiles, tileNum, tx, ty) // Color number at this point.
+			if c == 0 {
+				continue // Transparent, so skip it.
+			}
+			p.paint(pixels, realX, realY, palettes[palNum*p.paletteSize()+c])
 		}
 	}
 }
@@ -226,7 +292,13 @@ func (p *PTSD) paintBackground(pixels []byte, tiles, palette, bg []uint16) {
 			bgY := (y + int(p.bgScrollY)) & 0xff
 
 			mapOffset := (bgX / p.tileWidth) + ((bgY / p.tileHeight) * tilesAcross)
-			tile := bg[mapOffset]
+			tile := bg[mapOffset>>1] // Two tiles per word.
+			if tile&1 != 0 {
+				tile = tile & 0xff
+			} else {
+				tile = tile >> 8
+			}
+
 			c := p.tileAt(tiles, tile, bgX&(p.tileWidth-1), bgY&(p.tileHeight-1))
 			if c == 0 {
 				continue
