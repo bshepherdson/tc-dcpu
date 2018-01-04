@@ -4,6 +4,7 @@ import "tc-dcpu/common"
 
 var deviceTypes = map[string]func(cpu common.CPU) common.Device{
 	"keyboard": func(cpu common.CPU) common.Device { return new(Keyboard) },
+	"rng":      func(cpu common.CPU) common.Device { return NewRNG() },
 	"lem1802":  func(cpu common.CPU) common.Device { return NewLEM1802() },
 	"ptsd":     func(cpu common.CPU) common.Device { return NewPTSD() },
 	"clock":    func(cpu common.CPU) common.Device { return NewClock() },
@@ -18,6 +19,7 @@ var deviceDescriptions = map[string]string{
 	"m35fd":    "Mackapar Media 3.5\" floppy drive",
 	"keyboard": "Generic keyboard",
 	"clock":    "Generic clock",
+	"rng":      "Generic random number generator",
 	"hsdp-1d":  "Chartronics High Speed Data Printer",
 	"imva":     "Interlaced Monochrome Videographic Adaptor",
 }
