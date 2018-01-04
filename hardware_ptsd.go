@@ -285,11 +285,17 @@ func (p *PTSD) paintSpriteTile(pixels []byte, tiles, palettes []uint16, palNum, 
 
 func (p *PTSD) paintBackground(pixels []byte, tiles, palette, bg []uint16) {
 	tilesAcross := 256 / p.tileWidth
+	scrollMask := 0xff
+	if p.smallBackground {
+		tilesAcross = 128 / p.tileWidth
+		scrollMask = 0x7f
+	}
+
 	for y := 0; y < ptsdHeightPixels; y++ {
 		for x := 0; x < ptsdWidthPixels; x++ {
 			// Adjust for scrolling to find the background-relative coordinates.
-			bgX := (x + int(p.bgScrollX)) & 0xff
-			bgY := (y + int(p.bgScrollY)) & 0xff
+			bgX := (x + int(p.bgScrollX)) & scrollMask
+			bgY := (y + int(p.bgScrollY)) & scrollMask
 
 			mapOffset := (bgX / p.tileWidth) + ((bgY / p.tileHeight) * tilesAcross)
 			tile := bg[mapOffset>>1] // Two tiles per word.
