@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"tc-dcpu/common"
+
+	"github.com/shepheb/tc-dcpu/common"
 )
 
 // TODO: The disk geometry changed in the spec, I should re-work the speeds and

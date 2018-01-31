@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"tc-dcpu/common"
+
+	"github.com/shepheb/tc-dcpu/common"
 )
 
 const (

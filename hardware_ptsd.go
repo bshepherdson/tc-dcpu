@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"runtime"
-	"tc-dcpu/common"
 	"time"
+
+	"github.com/shepheb/tc-dcpu/common"
 
 	"github.com/veandco/go-sdl2/sdl"
 )

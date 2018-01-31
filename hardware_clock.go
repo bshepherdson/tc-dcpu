@@ -1,8 +1,9 @@
 package main
 
 import (
-	"tc-dcpu/common"
 	"time"
+
+	"github.com/shepheb/tc-dcpu/common"
 )
 
 type Clock struct {

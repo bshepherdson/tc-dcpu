@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"tc-dcpu/common"
+
+	"github.com/shepheb/tc-dcpu/common"
 )
 
 type HSDP1D struct {

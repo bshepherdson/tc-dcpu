@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"tc-dcpu/common"
-	"tc-dcpu/dcpu"
-	"tc-dcpu/rq"
+	"github.com/shepheb/tc-dcpu/common"
+	"github.com/shepheb/tc-dcpu/dcpu"
+	"github.com/shepheb/tc-dcpu/rq"
 )
 
 func usage() {

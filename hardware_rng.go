@@ -2,8 +2,9 @@ package main
 
 import (
 	"math/rand"
-	"tc-dcpu/common"
 	"time"
+
+	"github.com/shepheb/tc-dcpu/common"
 )
 
 type RNG struct {

@@ -6,7 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"tc-dcpu/common"
+
+	"github.com/shepheb/tc-dcpu/common"
 )
 
 type command func(c common.CPU, args []string)
