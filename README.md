@@ -23,7 +23,7 @@ It supports the same hardware as the DCPU-16. Instructions generally do less per
 cycle than the DCPU, but the simpler core executes faster, yielding similar
 performance.
 
-Pass the `-cpu rq16` flag to switch to Risque-16 mode.
+Pass the `-cpu rq` flag to switch to Risque-16 mode.
 
 ## Getting Started
 
@@ -43,8 +43,13 @@ TC-DCPU supports the following devices, with links to the Techcompliant
   with TC's extensions to add time-since-startup and absolute time.
 - [M35fd](https://github.com/techcompliant/TC-Specs/blob/master/Storage/m35fd.txt)
   floppy drive
+- [Generic random number generator](
+    https://github.com/shepheb/TC-Specs/blob/ef3f62905d69ea4a0c1e42a60e32a57510064f80/CPU/RNG.md)
 - [HSDP-1D](https://github.com/techcompliant/TC-Specs/blob/master/Simple%20Outputs/HSDP-1D.md)
   high-speed printer.
+- [KaiComm SSI](
+    https://github.com/shepheb/TC-Specs/blob/tiled-display/IO%20Data/KaiComm-SSI.md)
+    serial interface (uses the console, handy for early of text interfaces)
 
 All devices publish the Techcompliant new IDs, not the old Notch ones.
 
@@ -64,7 +69,7 @@ All devices publish the Techcompliant new IDs, not the old Notch ones.
   hardware devices, and their names as understood by `-hw`.
 - `-hw device1,device2,...`: Pass a comma-separated list of device names as
   given by `-dump-hw`; devices will be created in that order.
-    - Default: `keyboard,lem1802,m35fd,clock,hsdp-1d`
+    - Default: `keyboard,lem1802,m35fd,clock,rng,hsdp-1d,serial`
 - `script script_file`: Run the script in this file (see below for the scripting
   language). This allows for automated testing and so on.
 - `turbo`: Pass this to start in "turbo" mode, where the speed is unlimited.

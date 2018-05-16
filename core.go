@@ -29,7 +29,7 @@ var Turbo bool = false
 
 func main() {
 	// Turbo mode for now, not working on the timing.
-	deviceList := flag.String("hw", "keyboard,lem1802,m35fd,clock,rng,hsdp-1d",
+	deviceList := flag.String("hw", "keyboard,lem1802,m35fd,clock,rng,hsdp-1d,serial",
 		"List of hardware devices. See -dump-hw for a list of devices.")
 	dumpDevices := flag.Bool("dump-hw", false,
 		"Dump a list of hardware devices and exit.")
