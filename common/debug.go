@@ -50,6 +50,31 @@ var DebugCommands = map[string]DebugCommand{
 					i += uint16(c.DisassembleOp(i))
 				}
 			})),
+
+	"db": newCommand("(D)ump memory to the given file in (b)inary (big-endian), ",
+		func(c CPU, args []string) {
+			if len(args) < 2 {
+				fmt.Println("No filename given")
+				return
+			}
+
+			f, err := os.Create(args[1])
+			if err != nil {
+				fmt.Printf("Could not open file: %v\n", err)
+				return
+			}
+
+			mem := c.Memory()
+			buf := make([]byte, 0x20000)
+			for i := 0; i < 0x10000; i++ {
+				w := mem[i]
+				buf[i*2] = byte(w >> 8)
+				buf[i*2+1] = byte(w)
+			}
+
+			f.Write(buf)
+			f.Close()
+		}),
 }
 
 func newCommand(desc string, f func(c CPU, args []string)) DebugCommand {
