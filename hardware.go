@@ -11,6 +11,7 @@ var deviceTypes = map[string]func(cpu common.CPU) common.Device{
 	"m35fd":    func(cpu common.CPU) common.Device { return NewM35FD(cpu) },
 	"hsdp-1d":  func(cpu common.CPU) common.Device { return NewHSDP1D() },
 	"imva":     func(cpu common.CPU) common.Device { return NewIMVA() },
+	"serial":   func(cpu common.CPU) common.Device { return NewSerial() },
 }
 
 var deviceDescriptions = map[string]string{
@@ -22,4 +23,5 @@ var deviceDescriptions = map[string]string{
 	"rng":      "Generic random number generator",
 	"hsdp-1d":  "Chartronics High Speed Data Printer",
 	"imva":     "Interlaced Monochrome Videographic Adaptor",
+	"serial":   "KaiComm SSI serial link",
 }
