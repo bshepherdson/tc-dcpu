@@ -34,7 +34,7 @@ func (rng *RNG) Tick(d common.CPU) {}
 func (rng *RNG) Cleanup()          {}
 
 func (rng *RNG) reset() {
-	rng.r.Seed(time.Now().UnixNano())
+	rng.r = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
 func NewRNG() common.Device {
