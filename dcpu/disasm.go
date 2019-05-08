@@ -93,7 +93,7 @@ var argFormats = map[uint16]string{
 }
 
 func isWideOp(arg uint16) bool {
-	return (0x10 <= arg && arg < 0x17) || arg == 0x1a || arg == 0x1e || arg == 0x1f
+	return (0x10 <= arg && arg < 0x18) || arg == 0x1a || arg == 0x1e || arg == 0x1f
 }
 
 func printArg(arg, extra uint16) string {
