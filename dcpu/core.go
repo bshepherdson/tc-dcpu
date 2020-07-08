@@ -48,8 +48,8 @@ func (d *dcpu) WriteReg(r, val uint16) {
 func (d *dcpu) AddInterrupt(msg uint16) {
 	d.addInterrupt(msg)
 }
-func (d *dcpu) AddBreakpoint(at uint16) {
-	d.breakpoints = append(d.breakpoints, at)
+func (d *dcpu) AddBreakpoint(at uint32) {
+	d.breakpoints = append(d.breakpoints, uint16(at))
 }
 func (d *dcpu) AddDevice(dev common.Device) {
 	d.devices = append(d.devices, dev)
@@ -60,8 +60,8 @@ func (d *dcpu) Devices() []common.Device {
 func (d *dcpu) Disassemble() {
 	disasmROM(d.Memory())
 }
-func (d *dcpu) DisassembleOp(at uint16) uint16 {
-	return uint16(disasmOp(d.mem[:], at, d.mem[at]))
+func (d *dcpu) DisassembleOp(at uint32) uint16 {
+	return uint16(disasmOp(d.mem[:], uint16(at), d.mem[at]))
 }
 func (d *dcpu) Debugging() *bool {
 	return &d.debug

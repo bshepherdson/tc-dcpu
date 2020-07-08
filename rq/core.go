@@ -56,8 +56,8 @@ func (c *rq) AddDevice(dev common.Device) {
 func (c *rq) Devices() []common.Device {
 	return c.devices
 }
-func (c *rq) AddBreakpoint(at uint16) {
-	c.breakpoints = append(c.breakpoints, at)
+func (c *rq) AddBreakpoint(at uint32) {
+	c.breakpoints = append(c.breakpoints, uint16(at))
 }
 func (c *rq) Debugging() *bool {
 	return &c.debug
@@ -65,8 +65,8 @@ func (c *rq) Debugging() *bool {
 func (c *rq) Disassemble() {
 	c.disasmROM()
 }
-func (c *rq) DisassembleOp(at uint16) uint16 {
-	return c.disasmOp(at)
+func (c *rq) DisassembleOp(at uint32) uint16 {
+	return c.disasmOp(uint16(at))
 }
 
 func (c *rq) DebugPrompt() {

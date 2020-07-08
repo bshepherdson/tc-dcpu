@@ -4,13 +4,16 @@ import "bufio"
 
 // CPU is the generic interface to the CPUs, used by the hardware to abstract
 // across the CPUs.
+// Note that PC addresses (eg. for breakpoints, disassembly) are given as
+// uint32. If the machine has a 16-bit address space, it should truncate
+// accordingly.
 type CPU interface {
 	Memory() []uint16
 	ReadReg(r uint16) uint16
 	WriteReg(r, val uint16)
 	AddInterrupt(msg uint16)
 	AddDevice(Device)
-	AddBreakpoint(at uint16)
+	AddBreakpoint(at uint32)
 	Devices() []Device
 	Debugging() *bool
 	DebugPrompt()
@@ -26,7 +29,7 @@ type CPU interface {
 
 	RunOp() bool // Runs a single cycle, returning false when nothing happened.
 	Disassemble()
-	DisassembleOp(at uint16) uint16 // Returns length in instructions.
+	DisassembleOp(at uint32) uint16 // Returns length in instructions.
 	Exit()
 }
 

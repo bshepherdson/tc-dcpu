@@ -32,22 +32,22 @@ var DebugCommands = map[string]DebugCommand{
 
 	"b": newCommand("Set a new (b)reakpoint at the given (hex) location",
 		singleHexArg("No breakpoint location specified (needs hex number)",
-			"Error parsing the location", func(c CPU, loc uint16) {
+			"Error parsing the location", func(c CPU, loc uint32) {
 				c.AddBreakpoint(loc)
 				fmt.Printf("Breakpoint set at PC = %04x\n", loc)
 			})),
 	"m": newCommand("Print a value from (m)emory",
 		singleHexArg("No memory location specified", "Error parsing location",
-			func(c CPU, loc uint16) {
+			func(c CPU, loc uint32) {
 				x := c.Memory()[loc]
 				fmt.Printf("[%04x] = %04x (%d, '%c')\n", loc, x, int16(x), rune(x))
 			})),
 
 	"i": newCommand("Disassemble the (i)nstruction at the given location, or at PC",
 		singleHexArg("No PC value given", "Error parsing location",
-			func(c CPU, loc uint16) {
+			func(c CPU, loc uint32) {
 				for i := loc; i < loc+16; {
-					i += uint16(c.DisassembleOp(i))
+					i += uint32(c.DisassembleOp(i))
 				}
 			})),
 
@@ -128,14 +128,14 @@ func cmdRegs(c CPU, args []string) {
 }
 
 func singleHexArg(notSpecifiedMsg, parseErrorMsg string,
-	cmd func(c CPU, arg uint16)) func(CPU, []string) {
+	cmd func(c CPU, arg uint32)) func(CPU, []string) {
 	return func(c CPU, args []string) {
 		if len(args) <= 1 {
 			fmt.Println(notSpecifiedMsg)
 			return
 		}
 
-		var x uint16
+		var x uint32
 		_, err := fmt.Sscanf(args[1], "%x", &x)
 		if err != nil {
 			fmt.Printf(parseErrorMsg+": %v\n", err)
