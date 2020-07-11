@@ -28,19 +28,19 @@ func (d *dcpu) Registers() []string {
 	return registers
 }
 
-func (d *dcpu) RegByName(name string) (uint16, string, bool) {
+func (d *dcpu) RegByName(name string) (uint32, string, bool) {
 	if r, ok := regNames[name]; ok {
-		return d.regs[r], strings.ToUpper(name), true
+		return uint32(d.regs[r]), strings.ToUpper(name), true
 	}
 
 	if name == "pc" || name == "PC" {
-		return d.pc, "PC", true
+		return uint32(d.pc), "PC", true
 	} else if name == "sp" || name == "SP" {
-		return d.sp, "SP", true
+		return uint32(d.sp), "SP", true
 	} else if name == "ex" || name == "EX" {
-		return d.ex, "EX", true
+		return uint32(d.ex), "EX", true
 	} else if name == "ia" || name == "IA" {
-		return d.ia, "IA", true
+		return uint32(d.ia), "IA", true
 	} else {
 		return 0, "", false
 	}

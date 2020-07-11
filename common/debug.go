@@ -103,9 +103,9 @@ var regNames = map[string]uint16{
 	"r7": 7,
 }
 
-func showReg(c CPU, name string, val uint16) {
+func showReg(c CPU, name string, val uint32) {
 	mem := c.Memory()
-	fmt.Printf("%2s  %04x (%d)\t[%s]  %04x (%d)\n", name, val, int16(val),
+	fmt.Printf("%2s  %04x (%d)\t[%s]  %04x (%d)\n", name, val, int32(val),
 		name, mem[val], int16(mem[val]))
 }
 

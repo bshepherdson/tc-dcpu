@@ -17,7 +17,7 @@ type CPU interface {
 	Devices() []Device
 	Debugging() *bool
 	DebugPrompt()
-	RegByName(name string) (uint16, string, bool)
+	RegByName(name string) (uint32, string, bool)
 	Registers() []string
 
 	// Hardware may want to block the CPU for some length of time. This gives the
@@ -27,7 +27,10 @@ type CPU interface {
 	// execute in parallel.
 	HardwareDelay(cycles int)
 
-	RunOp() bool // Runs a single cycle, returning false when nothing happened.
+	// Runs a single cycle, returning false when nothing happened.
+	// That happens if it's halted with no interrupts, or while counting down
+	// delay cycles.
+	RunOp() bool
 	Disassemble()
 	DisassembleOp(at uint32) uint16 // Returns length in instructions.
 	Exit()

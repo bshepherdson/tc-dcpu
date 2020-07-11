@@ -11,6 +11,7 @@ import (
 
 	"github.com/shepheb/tc-dcpu/common"
 	"github.com/shepheb/tc-dcpu/dcpu"
+	"github.com/shepheb/tc-dcpu/mocha"
 	"github.com/shepheb/tc-dcpu/rq"
 )
 
@@ -33,10 +34,10 @@ func main() {
 		"List of hardware devices. See -dump-hw for a list of devices.")
 	dumpDevices := flag.Bool("dump-hw", false,
 		"Dump a list of hardware devices and exit.")
-	arch := flag.String("arch", "dcpu", "CPU architecture. 'dcpu' and 'rq' are supported")
+	arch := flag.String("arch", "dcpu", "CPU architecture. 'dcpu', 'rq' and 'mocha' are supported")
 	disks := flag.String("disk", "", "Filenames of the disk to load (comma-separated.")
 	disassemble := flag.Bool("disassemble", false, "Disassemble the ROM to stdout")
-	turboFlag := flag.Bool("turbo", false, "True to start in turbo (unlimited speed) mode. Default: false, 100kHz.")
+	turboFlag := flag.Bool("turbo", false, "True to start in turbo (unlimited speed) mode. Default: false, native speed (DCPU: 100kHz)")
 	script := flag.String("script", "", "Script file to run.")
 
 	flag.Parse()
@@ -74,6 +75,8 @@ func main() {
 		cpu = dcpu.NewDCPU()
 	case "rq":
 		cpu = rq.NewRQ()
+	case "mocha":
+		cpu = mocha.NewMocha86k()
 	default:
 		fmt.Printf("Unknown CPU architecture: %s\n", *arch)
 	}

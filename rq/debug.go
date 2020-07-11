@@ -19,21 +19,21 @@ func (c *rq) Registers() []string {
 	return registers
 }
 
-func (c *rq) RegByName(name string) (uint16, string, bool) {
+func (c *rq) RegByName(name string) (uint32, string, bool) {
 	if r, ok := regNames[name]; ok {
-		return c.regs[r], strings.ToLower(name), true
+		return uint32(c.regs[r]), strings.ToLower(name), true
 	}
 
 	if name == "pc" || name == "PC" {
-		return c.pc, "pc", true
+		return uint32(c.pc), "pc", true
 	} else if name == "sp" || name == "SP" {
-		return c.sp, "sp", true
+		return uint32(c.sp), "sp", true
 	} else if name == "lr" || name == "LR" {
-		return c.lr, "lr", true
+		return uint32(c.lr), "lr", true
 	} else if name == "cpsr" || name == "CPSR" {
-		return c.cpsr, "cpsr", true
+		return uint32(c.cpsr), "cpsr", true
 	} else if name == "spsr" || name == "SPSR" {
-		return c.spsr, "spsr", true
+		return uint32(c.spsr), "spsr", true
 	} else {
 		return 0, "", false
 	}
