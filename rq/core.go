@@ -648,8 +648,13 @@ func (c *rq) subHelper(lhs, rhs uint16, withCarry bool) uint16 {
 		}
 	}
 
-	res32 := uint32(lhs) - uint32(rhs) - uint32(carry)
-	c.setFlag(cpsrC, (res32&0xffff0000) != 0)
+	// Carry flag is used as a borrow. That is, we imagine setting an extra, 17th
+	// bit on the LHS, and then subtracting. The output C bit is that same bit
+	// after the subtraction.
+	//fmt.Printf("sub: lhs %04x rhs %04x extra carry %04x\n", lhs, rhs, carry)
+	res32 := (0x10000 | uint32(lhs)) - uint32(rhs) - uint32(carry)
+	//fmt.Printf("res %08x\n", res32)
+	c.setFlag(cpsrC, (res32&0x10000) != 0)
 	res := uint16(res32)
 	// Overflow happens when the two inputs have the same sign, and the result
 	// sign differs.
