@@ -1,6 +1,9 @@
 package mocha
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 type binaryOp int
 
@@ -19,11 +22,17 @@ func (binaryOp) run(c *m86k, opcode uint16) {
 	srcMC := decodeOperand(src, longwords)
 	dstMC := decodeOperand(dst, longwords)
 
-	op := (opcode >> 11) & 7
+	op := (opcode >> 12) & 7
 	if op == 7 { // long form
 		next := c.consumeWord()
 		op = next & 0x1f
-		binaryLongHandlers[op](c, dstMC, srcMC, next, longwords)
+		h := binaryLongHandlers[op]
+		if h == nil {
+			fmt.Printf("failure! tried to execute illegal instruction at %08x: %04x %04x\n",
+				c.pc-2, opcode, next)
+			os.Exit(1)
+		}
+		h(c, dstMC, srcMC, next, longwords)
 	} else {
 		binaryShortHandlers[op](c, dstMC, srcMC, longwords)
 	}
@@ -71,7 +80,7 @@ var binaryShortHandlers = map[uint16]func(c *m86k, dst, src *operandMC, longword
 	// SUB
 	3: func(c *m86k, dst, src *operandMC, longwords bool) {
 		op := dyadic([]mc{mcLit(0),
-			shortLong(longwords, opAddWord, opAddLongword), mcPutEX})
+			shortLong(longwords, opSubWord, opSubLongword), mcPutEX})
 		op(c, dst, src, longwords)
 	},
 
@@ -99,11 +108,11 @@ var binaryLongHandlers = map[uint16]func(c *m86k, dst, src *operandMC, next uint
 	},
 
 	// SHR
-	0x02: dyadicLong([]mc{opShr}),
+	0x02: dyadicLongWidths([]mc{opShr16}, []mc{opShr32}),
 	// ASR
-	0x03: dyadicLong([]mc{opAsr}),
+	0x03: dyadicLongWidths([]mc{opAsr16}, []mc{opAsr32}),
 	// SHL
-	0x04: dyadicLong([]mc{opShl}),
+	0x04: dyadicLongWidths([]mc{opShl16}, []mc{opShl32}),
 
 	// MUL - Both widths are combined into one. It produces 32-bit result + EX on
 	// the stack, and the word-size one drops EX and splits result.
@@ -214,12 +223,12 @@ func binaryBranch(word func(a, b uint16) bool, long func(a, b uint32) bool) long
 	}
 }
 
-// ( src dst ) on the stack, but we want a = dst, b = src
+// ( src dst ) on the stack, but we want dst to be the left-hand argument.
 func mcCompare32(cmp func(a, b uint32) bool) mc {
 	return func(c *m86k, s *mcState) {
-		b := s.pop()
-		a := s.pop()
-		flag := cmp(a, b)
+		dst := s.pop()
+		src := s.pop()
+		flag := cmp(dst, src)
 		if flag {
 			s.push(1)
 		} else {
@@ -229,9 +238,9 @@ func mcCompare32(cmp func(a, b uint32) bool) mc {
 }
 func mcCompare16(cmp func(a, b uint16) bool) mc {
 	return func(c *m86k, s *mcState) {
-		b := s.pop()
-		a := s.pop()
-		flag := cmp(uint16(a), uint16(b))
+		dst := s.pop()
+		src := s.pop()
+		flag := cmp(uint16(dst), uint16(src))
 		if flag {
 			s.push(1)
 		} else {
@@ -258,7 +267,10 @@ func mcMaskFor16(c *m86k, s *mcState) {
 
 // ( src dst ex -- sum ex' )
 func opAddWord(c *m86k, s *mcState) {
-	sum := uint64(s.pop()) + uint64(s.pop()) + uint64(s.pop())
+	ex := s.pop()
+	dst := s.pop()
+	src := s.pop()
+	sum := uint64(src&0xffff) + uint64(dst&0xffff) + uint64(ex&0xffff)
 	s.push(uint32(sum & 0xffff))
 	if sum > 0xffff {
 		s.push(1)
@@ -361,31 +373,52 @@ func opDvi(c *m86k, s *mcState) {
 
 // ( src dst -- res ), updates EX accordingly.
 // NB: src is always the shift amount, dst is shifted.
-func opShr(c *m86k, s *mcState) {
+func opShr32(c *m86k, s *mcState) {
 	value := uint64(s.pop()) << 32
 	value >>= s.pop()
 	s.push(uint32(value >> 32))
 	c.ex = uint32(value)
 	c.cycles++
 }
+func opShr16(c *m86k, s *mcState) {
+	value := uint64(s.pop()) << 16
+	value >>= s.pop()
+	s.push(uint32(value >> 16))
+	c.ex = uint32(value & 0xffff)
+	c.cycles++
+}
 
 // ( src dst -- res ), updates EX accordingly.
 // NB: src is always the shift amount, dst is shifted.
-func opAsr(c *m86k, s *mcState) {
+func opAsr32(c *m86k, s *mcState) {
 	value := int64(int32(s.pop())) << 32
 	value >>= s.pop()
 	s.push(uint32(value >> 32))
 	c.ex = uint32(value)
 	c.cycles++
 }
+func opAsr16(c *m86k, s *mcState) {
+	value := int32(int16(uint16(s.pop()))) << 16
+	value >>= s.pop()
+	s.push(uint32(value) >> 16)
+	c.ex = uint32(value & 0xffff)
+	c.cycles++
+}
 
 // ( src dst -- res ), updates EX accordingly.
 // NB: src is always the shift amount, dst is shifted.
-func opShl(c *m86k, s *mcState) {
+func opShl32(c *m86k, s *mcState) {
 	value := uint64(s.pop())
 	value <<= s.pop()
 	s.push(uint32(value))
 	c.ex = uint32(value >> 32)
+	c.cycles++
+}
+func opShl16(c *m86k, s *mcState) {
+	value := uint64(s.pop())
+	value <<= s.pop()
+	s.push(uint32(value & 0xffff))
+	c.ex = uint32(value >> 16)
 	c.cycles++
 }
 
@@ -396,7 +429,7 @@ func (binaryOp) disassemble(d *disState, opcode uint16) {
 		next := d.consumeWord()
 		op = binaryOpLongNames[next&0x1f]
 
-		if next&0x10 != 0 { // Branch-type
+		if op != "" && next&0x10 != 0 { // Branch-type
 			delta := int16(next) >> 5
 			if delta == -1 { // IF-type
 				op = "IF" + op[2:]

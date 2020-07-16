@@ -216,8 +216,10 @@ func run(c common.CPU) {
 
 	*/
 
-	// Ticks at 100Hz, so I run 1000 cycles per tick.
+	// Ticks at 100Hz, so I run c.Speed()/100 cycles per tick, for about the right
+	// net speed over time.
 	ticker := time.Tick(10 * time.Millisecond)
+	cpuChunkSize := c.Speed() / 100
 	cycles := 0
 
 	// Repeatedly try to run the CPU operation, stopping on a debug to show the
@@ -225,7 +227,7 @@ func run(c common.CPU) {
 	for {
 		for !*c.Debugging() {
 			cycles++
-			if !Turbo && cycles >= 1000 {
+			if !Turbo && cycles >= cpuChunkSize {
 				_ = <-ticker
 				cycles = 0
 			}

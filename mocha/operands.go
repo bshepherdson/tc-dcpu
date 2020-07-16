@@ -72,7 +72,7 @@ var special2 = map[uint16]func(longword bool) *operandMC{
 	4: operandPCIndirect,
 	5: operandPCIndexed,
 	6: operandPick,
-	7: operandReserved,
+	7: operandImmediateSignedWord,
 }
 
 func decodeOperand(op uint16, longword bool) *operandMC {
@@ -98,7 +98,7 @@ var specialWidths = map[uint16]uint32{
 	4: 1, // [PC + lit]
 	5: 1, // [PC, A]
 	6: 1, // [SP + lit]
-	7: 0, // Reserved
+	7: 1, // lit_sw
 }
 
 func operandWidth(op uint16) uint32 {
@@ -162,7 +162,7 @@ func decodeRegPostincrement(regField uint16, longword bool) *operandMC {
 			mcLit16(regField), mcReadReg32,
 			mcDup, mcLit(delta), mcPlus, // ( original incremented )
 			mcLit16(regField), mcWriteReg32, // ( original )
-			mcPushEA,
+			mcSetEA,
 		},
 	}
 	return readWriteEA(thread, longword)
@@ -181,7 +181,7 @@ func decodeRegPredecrement(regField uint16, longword bool) *operandMC {
 			mcLit16(regField), mcReadReg32,
 			mcLit(delta), mcMinus, // ( decremented )
 			mcDup, mcLit16(regField), mcWriteReg32,
-			mcPushEA,
+			mcSetEA,
 		},
 	}
 	return readWriteEA(thread, longword)
@@ -191,7 +191,7 @@ func decodeRegOffset(regField uint16, longword bool) *operandMC {
 	thread := &operandMC{
 		prepEA: []mc{
 			mcLit16(regField), mcReadReg32,
-			mcConsumePCWord, mcPlus, mcPushEA,
+			mcConsumePCWord, mcSignExtend, mcPlus, mcSetEA,
 		},
 	}
 	return readWriteEA(thread, longword)
@@ -201,7 +201,7 @@ func decodeRegIndexed(regField uint16, longword bool) *operandMC {
 	thread := &operandMC{
 		prepEA: []mc{
 			mcLit16(regField), mcReadReg32,
-			mcConsumePCWord, mcReadReg32, mcPlus, mcPushEA,
+			mcConsumePCWord, mcReadReg32, mcPlus, mcSetEA,
 		},
 	}
 	return readWriteEA(thread, longword)
@@ -238,45 +238,23 @@ func operandIA(longword bool) *operandMC {
 
 func operandPeek(longword bool) *operandMC {
 	return readWriteEA(&operandMC{
-		prepEA: []mc{mcGetSP, mcPushEA},
+		prepEA: []mc{mcGetSP, mcSetEA},
 	}, longword)
 }
 
 // This is awkward because it works both ways, push and pop.
-// Only PEA and LEA use the effective addres itself, and since they don't move
+// Only PEA and LEA use the effective address itself, and since they don't move
 // it it's equivalent to PEEK.
 // Otherwise, the read and write routines adjust SP properly.
 func operandPushPop(longword bool) *operandMC {
+	lit := shortLong(longword, mcLit(1), mcLit(2))
 	return &operandMC{
-		prepEA: []mc{mcGetSP},
-		read: []mc{
-			mcGetSP, mcDup, litWidth(longword), mcPlus, mcPutSP, readMem(longword),
-		},
-		write: []mc{
-			mcGetSP, litWidth(longword), mcMinus, mcDup, mcPutSP, writeMem(longword),
-		},
+		prepEA: []mc{mcGetSP, mcSetEA},
+		read: []mc{mcGetSP, mcDup, lit, mcPlus, mcPutSP,
+			shortLong(longword, mcReadWord, mcReadLongword)},
+		write: []mc{mcGetSP, lit, mcMinus, mcDup, mcPutSP,
+			shortLong(longword, mcWriteWord, mcWriteLongword)},
 	}
-}
-
-func litWidth(longword bool) mc {
-	if longword {
-		return mcLit(2)
-	}
-	return mcLit(1)
-}
-
-func readMem(longword bool) mc {
-	if longword {
-		return mcReadLongword
-	}
-	return mcReadWord
-}
-
-func writeMem(longword bool) mc {
-	if longword {
-		return mcWriteLongword
-	}
-	return mcWriteWord
 }
 
 func operandLit0(long bool) *operandMC {
@@ -293,13 +271,13 @@ func operandLit1(long bool) *operandMC {
 
 func operandAbsWord(longword bool) *operandMC {
 	return readWriteEA(&operandMC{
-		prepEA: []mc{mcConsumePCWord},
+		prepEA: []mc{mcConsumePCWord, mcSetEA},
 	}, longword)
 }
 
 func operandAbsLongword(longword bool) *operandMC {
 	return readWriteEA(&operandMC{
-		prepEA: []mc{mcConsumePCLongword},
+		prepEA: []mc{mcConsumePCLongword, mcSetEA},
 	}, longword)
 }
 
@@ -317,7 +295,7 @@ func operandImmediateLongword(longword bool) *operandMC {
 
 func operandPCIndirect(longword bool) *operandMC {
 	return readWriteEA(&operandMC{
-		prepEA: []mc{mcGetPC, mcConsumePCWord, mcPlus, mcPushEA},
+		prepEA: []mc{mcGetPC, mcConsumePCWord, mcPlus, mcSetEA},
 	}, longword)
 }
 
@@ -325,16 +303,18 @@ func operandPCIndirect(longword bool) *operandMC {
 // to that PC.
 func operandPCIndexed(longword bool) *operandMC {
 	return readWriteEA(&operandMC{
-		prepEA: []mc{mcConsumePCWord, mcGetPC, mcReadReg32, mcPlus, mcPushEA},
+		prepEA: []mc{mcConsumePCWord, mcGetPC, mcReadReg32, mcPlus, mcSetEA},
 	}, longword)
 }
 
 func operandPick(longword bool) *operandMC {
 	return readWriteEA(&operandMC{
-		prepEA: []mc{mcGetSP, mcConsumePCWord, mcPlus, mcPushEA},
+		prepEA: []mc{mcGetSP, mcConsumePCWord, mcPlus, mcSetEA},
 	}, longword)
 }
 
-func operandReserved(longword bool) *operandMC {
-	panic("reserved operand, undefined!")
+func operandImmediateSignedWord(longword bool) *operandMC {
+	return &operandMC{
+		read: []mc{mcConsumePCWord, mcSignExtend},
+	}
 }

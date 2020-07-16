@@ -33,8 +33,12 @@ func (unaryBranch) run(c *m86k, opcode uint16) {
 		3: unaryCond(func(x uint32) bool { return int32(x) < 0 }),
 	}[(opcode>>6)&3]
 
-	c.runMC(opMC.prepEA, opMC.read, decBlock, []mc{conditionBlock},
-		[]mc{mcLit(delta), mcGetPC, mcPlus, mcPutPC})
+	cond := c.runMC(opMC.prepEA, opMC.read, decBlock, []mc{conditionBlock})
+	if cond != 0 {
+		c.runMC([]mc{mcLit(delta), mcGetPC, mcPlus, mcPutPC})
+	} else {
+		c.cycles++ // Extra cycle for failure
+	}
 	c.cycles++ // TODO Check speeds
 }
 
@@ -48,7 +52,7 @@ var unaryCondNames = []string{"BZR", "BNZ", "BPS", "BNG", "BZRD", "BNZD", "BPSD"
 func (unaryBranch) disassemble(d *disState, opcode uint16) {
 	delta := d.consumeWord()
 	operand := d.disOperand(opcode & 0x3f)
-	sz := d.disL(opcode&0x10 != 0)
+	sz := d.disL(opcode&0x8000 != 0)
 	cond := unaryCondNames[(opcode>>6)&7]
 	d.emit(cond, sz, " ", operand, ", ", fmt.Sprintf("%d", delta))
 }

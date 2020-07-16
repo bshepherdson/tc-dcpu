@@ -18,7 +18,14 @@ type CPU interface {
 	Debugging() *bool
 	DebugPrompt()
 	RegByName(name string) (uint32, string, bool)
+	RegisterWidth(name string) int
 	Registers() []string
+
+	// Returns the desired CPU clock speed in Hertz, ie. cycles per second.
+	// This is used to roughly limit the CPU speed when not in Turbo mode. We run
+	// a 100Hz base clock and run CPU cycles in chunks of Speed() / 100 every
+	// 10ms.
+	Speed() int
 
 	// Hardware may want to block the CPU for some length of time. This gives the
 	// number of cycles to block for. The final delay count is

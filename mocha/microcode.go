@@ -1,5 +1,12 @@
 package mocha
 
+import (
+	"fmt"
+	"reflect"
+	"runtime"
+	"strings"
+)
+
 // Interpreting the complicated addressing modes and other values is usually
 // done in hardware with microcoding, and that approach seems sensible here too.
 // The microcode routines are written as operations for a Forth-like stack
@@ -32,18 +39,40 @@ func (st *mcState) tos() *uint32 {
 	return &st.stack[st.sp]
 }
 
+func (st *mcState) printStack() {
+	var strs []string
+	for i := 0; i <= st.sp; i++ {
+		strs = append(strs, fmt.Sprintf("%08x", st.stack[i]))
+	}
+	fmt.Println(strings.Join(strs, " "))
+}
+
 func newMcState() *mcState {
 	return &mcState{sp: -1}
 }
+
+const debug = false
 
 // Runs any number of threads over the same state.
 // Returns TOS, or 0 if empty.
 func (c *m86k) runMC(threads ...microThread) uint32 {
 	s := newMcState()
+	if debug {
+		fmt.Printf("\n\n============\n")
+	}
 	for _, thread := range threads {
 		for _, op := range thread {
+			if debug {
+				fmt.Println(runtime.FuncForPC(reflect.ValueOf(op).Pointer()).Name())
+			}
 			op(c, s)
+			if debug {
+				s.printStack()
+			}
 		}
+	}
+	if debug {
+		fmt.Printf("============\n")
 	}
 	if s.sp >= 0 {
 		return s.pop()
@@ -120,33 +149,33 @@ func mcWriteReg16(c *m86k, s *mcState) {
 
 // ( addr32 -- u16 )
 func mcReadWord(c *m86k, s *mcState) {
-	addr := s.pop() & memMask
-	s.push(uint32(c.mem[addr]))
+	addr := s.pop()
+	s.push(uint32(c.readWord(addr)))
 	c.cycles++
 }
 
 // ( addr32 -- u32 )
 func mcReadLongword(c *m86k, s *mcState) {
-	addr := s.pop() & memMask
-	hi := c.mem[addr]
-	lo := c.mem[addr+1]
+	addr := s.pop()
+	hi := c.readWord(addr)
+	lo := c.readWord(addr + 1)
 	s.push((uint32(hi) << 16) | uint32(lo))
 	c.cycles += 2
 }
 
 // ( u16 addr32 -- )
 func mcWriteWord(c *m86k, s *mcState) {
-	addr := s.pop() & memMask
-	c.mem[addr] = uint16(s.pop())
+	addr := s.pop()
+	c.writeWord(addr, uint16(s.pop()))
 	c.cycles += 1
 }
 
 // ( u32 addr32 -- )
 func mcWriteLongword(c *m86k, s *mcState) {
-	addr := s.pop() & memMask
+	addr := s.pop()
 	value := s.pop()
-	c.mem[addr] = uint16(value >> 16)
-	c.mem[addr+1] = uint16(value)
+	c.writeWord(addr, uint16(value>>16))
+	c.writeWord(addr+1, uint16(value))
 	c.cycles += 2
 }
 

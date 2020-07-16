@@ -56,6 +56,11 @@ func (c *rq) AddDevice(dev common.Device) {
 func (c *rq) Devices() []common.Device {
 	return c.devices
 }
+
+func (c *rq) Speed() int {
+	return 200000
+}
+
 func (c *rq) AddBreakpoint(at uint32) {
 	c.breakpoints = append(c.breakpoints, uint16(at))
 }

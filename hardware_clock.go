@@ -57,6 +57,7 @@ func (c *Clock) Interrupt(d common.CPU) {
 
 func (c *Clock) Tick(d common.CPU) {
 	c.ticksSince++
+	//fmt.Printf("clock: ticking %t, msg = %x, since %v\n", c.ticking, c.intMessage, time.Since(c.lastTick))
 	if c.ticking && c.intMessage != 0 && time.Since(c.lastTick) >= c.tickInterval {
 		c.lastTick = time.Now()
 		d.AddInterrupt(c.intMessage)

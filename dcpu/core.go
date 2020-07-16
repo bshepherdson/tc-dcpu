@@ -67,6 +67,10 @@ func (d *dcpu) Debugging() *bool {
 	return &d.debug
 }
 
+func (d *dcpu) Speed() int {
+	return 100000
+}
+
 func (d *dcpu) HardwareDelay(cycles int) {
 	if d.cycles < cycles {
 		d.cycles = cycles

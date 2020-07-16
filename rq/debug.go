@@ -38,3 +38,7 @@ func (c *rq) RegByName(name string) (uint32, string, bool) {
 		return 0, "", false
 	}
 }
+
+func (*rq) RegisterWidth(name string) int {
+	return 16
+}

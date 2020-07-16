@@ -67,7 +67,7 @@ func (d *disState) disOperand(operand uint16) string {
 		return fmt.Sprintf("[%s + $%04x]", d.reg(regField), lit)
 	} else if mode == 5 { // [A, B]
 		reg := d.consumeWord()
-		return fmt.Sprintf("[%s, %s]", d.reg(regField), d.reg(reg))
+		return fmt.Sprintf("[%s, %s]", d.reg(regField), d.reg(reg&7))
 	} else if mode == 6 && regField == 0 { // PC
 		return "PC"
 	} else if mode == 6 && regField == 1 { // SP
@@ -105,8 +105,9 @@ func (d *disState) disOperand(operand uint16) string {
 	} else if mode == 7 && regField == 6 { // [SP+lit]
 		lit := d.consumeWord()
 		return fmt.Sprintf("[SP + $%04x]", lit)
-	} else {
-		panic(fmt.Sprintf("Unknown operand: %x %x %x", operand, mode, regField))
+	} else { // lit_signed_w
+		lit := d.consumeWord()
+		return fmt.Sprintf("(sw %04x %d)", lit, lit)
 	}
 }
 
@@ -120,8 +121,8 @@ func (d *disState) disReg(reg uint16) {
 
 func (d *disState) disL(longwords bool) string {
 	if longwords {
-		return ".l "
+		return "L "
 	} else {
-		return ".w "
+		return "W "
 	}
 }

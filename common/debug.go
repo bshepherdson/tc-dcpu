@@ -103,10 +103,20 @@ var regNames = map[string]uint16{
 	"r7": 7,
 }
 
+// Indexed by register width in bits.
+var regLines = map[int]string{
+	16: "%2s      %04x (%d)\t[%s]      %04x (%d)\n",
+	32: "%2s  %08x (%d)\t[%s]  %08x (%d)\n",
+}
+
 func showReg(c CPU, name string, val uint32) {
 	mem := c.Memory()
-	fmt.Printf("%2s  %04x (%d)\t[%s]  %04x (%d)\n", name, val, int32(val),
-		name, mem[val], int16(mem[val]))
+	var memval uint16
+	if int(val) < len(mem) {
+		memval = mem[val]
+	}
+	fmt.Printf(regLines[c.RegisterWidth(name)], name, val, int32(val),
+		name, memval, int16(memval))
 }
 
 func cmdRegs(c CPU, args []string) {

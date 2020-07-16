@@ -13,7 +13,7 @@ var regNames = map[string]uint16{
 	"J": 7,
 }
 
-var registers = []string{"A", "B", "C", "X", "Y", "Z", "I", "J"}
+var registers = []string{"A", "B", "C", "X", "Y", "Z", "I", "J", "SP", "PC", "EX", "IA"}
 
 func (c *m86k) Registers() []string {
 	return registers
@@ -35,8 +35,15 @@ func (c *m86k) RegByName(name string) (uint32, string, bool) {
 		return c.sp, uc, true
 	}
 	if uc == "IA" {
-		return uint32(c.pc), uc, true
+		return uint32(c.ia), uc, true
 	}
 
 	return 0, "", false
+}
+
+func (*m86k) RegisterWidth(name string) int {
+	if name == "ia" || name == "IA" {
+		return 16
+	}
+	return 32
 }

@@ -19,7 +19,7 @@ func (unary) skip(c *m86k, opcode uint16) {
 }
 
 var unaryNames = []string{"", "SWP", "PEA", "NOT", "NEG", "JSR", "LOG", "LNK",
-	"", "HWN", "HWQ", "HWI", "INT", "IAQ", "EXT"}
+	"", "HWN", "HWQ", "HWI", "INT", "IAQ", "EXT", "CLR", "PSH", "POP"}
 
 func (unary) disassemble(d *disState, opcode uint16) {
 	d.emit(
@@ -43,6 +43,9 @@ var unaryHandlers = map[uint16]func(c *m86k, opMC *operandMC, longwords bool){
 	12: opInt,
 	13: opIaq,
 	14: opExt,
+	15: opClr,
+	16: opPsh,
+	17: opPop,
 }
 
 func opSwp(c *m86k, opMC *operandMC, longwords bool) {
@@ -70,7 +73,7 @@ func opNot(c *m86k, opMC *operandMC, longwords bool) {
 
 	c.runMC(opMC.prepEA, opMC.read,
 		[]mc{func(c *m86k, s *mcState) {
-			s.push(s.pop() & 0xffffffff)
+			s.push(s.pop() ^ 0xffffffff)
 		}},
 		clip, opMC.write)
 	c.cycles++
@@ -153,13 +156,38 @@ func opExt(c *m86k, opMC *operandMC, longwords bool) {
 	c.cycles += 2
 }
 
-var unaryMainHandlers = map[uint16]func(c *m86k, opMC *operandMC, longwords bool){
-	2: opNot,
-	3: opNeg,
-	4: opJsr,
-	5: opIaq,
-	6: opLog,
-	7: opHwi,
+func opClr(c *m86k, opMC *operandMC, longwords bool) {
+	c.runMC([]mc{mcLit(0)}, opMC.prepEA, opMC.write)
+}
+
+func opPsh(c *m86k, opMC *operandMC, longwords bool) {
+	bitmap := c.runMC(opMC.prepEA, opMC.read)
+	if bitmap&0x200 != 0 { // PC
+		c.runMC([]mc{mcGetPC, mcPushLongword})
+	}
+	if bitmap&0x100 != 0 { // EX
+		c.runMC([]mc{mcGetEX, mcPushLongword})
+	}
+	for bit := 7; bit >= 0; bit-- {
+		if bitmap&(1<<uint32(bit)) != 0 {
+			c.runMC([]mc{mcLit16(uint16(bit)), mcReadReg32, mcPushLongword})
+		}
+	}
+}
+
+func opPop(c *m86k, opMC *operandMC, longwords bool) {
+	bitmap := c.runMC(opMC.prepEA, opMC.read)
+	for bit := 0; bit < 8; bit++ {
+		if bitmap&(1<<uint32(bit)) != 0 {
+			c.runMC([]mc{mcPopLongword, mcLit16(uint16(bit)), mcWriteReg32})
+		}
+	}
+	if bitmap&0x100 != 0 { // EX
+		c.runMC([]mc{mcPopLongword, mcPutEX})
+	}
+	if bitmap&0x200 != 0 { // PC
+		c.runMC([]mc{mcPopLongword, mcPutPC})
+	}
 }
 
 func readOnly(c *m86k, opMC *operandMC, t microThread) uint32 {

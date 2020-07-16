@@ -45,3 +45,7 @@ func (d *dcpu) RegByName(name string) (uint32, string, bool) {
 		return 0, "", false
 	}
 }
+
+func (d *dcpu) RegisterWidth(name string) int {
+	return 16
+}
