@@ -100,7 +100,7 @@ type microThread []mc
 func mcReadReg32(c *m86k, s *mcState) {
 	reg := s.pop()
 	if reg < 0 || reg > 7 {
-		panic("Tried to read bad register number")
+		panic(fmt.Sprintf("Tried to read bad register number (PC $%08x, reg $%04x)", c.pc, reg))
 	}
 	s.push(c.regs[reg])
 }

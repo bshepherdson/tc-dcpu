@@ -69,10 +69,10 @@ var special2 = map[uint16]func(longword bool) *operandMC{
 	1: operandAbsLongword,
 	2: operandImmediateWord,
 	3: operandImmediateLongword,
-	4: operandPCIndirect,
-	5: operandPCIndexed,
-	6: operandPick,
-	7: operandImmediateSignedWord,
+	4: operandImmediateSignedWord,
+	5: operandPCIndirect,
+	6: operandPCIndexed,
+	7: operandPick,
 }
 
 func decodeOperand(op uint16, longword bool) *operandMC {
@@ -95,10 +95,10 @@ var specialWidths = map[uint16]uint32{
 	1: 2, // [lit_l]
 	2: 1, // lit_w
 	3: 2, // lit_l
-	4: 1, // [PC + lit]
-	5: 1, // [PC, A]
-	6: 1, // [SP + lit]
-	7: 1, // lit_sw
+	4: 1, // lit_sw
+	5: 1, // [PC + lit]
+	6: 1, // [PC, A]
+	7: 1, // [SP + lit]
 }
 
 func operandWidth(op uint16) uint32 {
