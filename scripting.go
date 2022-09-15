@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shepheb/tc-dcpu/common"
+	"github.com/bshepherdson/tc-dcpu/common"
 )
 
 type command func(c common.CPU, args []string)

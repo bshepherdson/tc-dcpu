@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/shepheb/tc-dcpu/common"
+	"github.com/bshepherdson/tc-dcpu/common"
 )
 
 type dcpu struct {

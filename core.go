@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shepheb/tc-dcpu/common"
-	"github.com/shepheb/tc-dcpu/dcpu"
-	"github.com/shepheb/tc-dcpu/mocha"
-	"github.com/shepheb/tc-dcpu/rq"
+	"github.com/bshepherdson/tc-dcpu/common"
+	"github.com/bshepherdson/tc-dcpu/dcpu"
+	"github.com/bshepherdson/tc-dcpu/mocha"
+	"github.com/bshepherdson/tc-dcpu/rq"
 )
 
 func usage() {

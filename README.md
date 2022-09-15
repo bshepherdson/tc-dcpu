@@ -16,7 +16,7 @@ to add the `LOG`, `BRK` and `HLT` opcodes.
 
 ### Risque-16
 
-The [Risque-16](https://github.com/shepheb/risque16) is a RISC-style chip
+The [Risque-16](https://github.com/bshepherdson/risque16) is a RISC-style chip
 inspired by the ARM and Thumb architectures.
 
 It supports the same hardware as the DCPU-16. Instructions generally do less per
@@ -27,7 +27,7 @@ Pass the `-cpu rq` flag to switch to Risque-16 mode.
 
 ## Getting Started
 
-Install Go, and then `go get github.com/shepheb/tc-dcpu`.
+Install Go, and then `go get github.com/bshepherdson/tc-dcpu`.
 
 ## Hardware
 
@@ -44,11 +44,11 @@ TC-DCPU supports the following devices, with links to the Techcompliant
 - [M35fd](https://github.com/techcompliant/TC-Specs/blob/master/Storage/m35fd.txt)
   floppy drive
 - [Generic random number generator](
-    https://github.com/shepheb/TC-Specs/blob/ef3f62905d69ea4a0c1e42a60e32a57510064f80/CPU/RNG.md)
+    https://github.com/bshepherdson/TC-Specs/blob/ef3f62905d69ea4a0c1e42a60e32a57510064f80/CPU/RNG.md)
 - [HSDP-1D](https://github.com/techcompliant/TC-Specs/blob/master/Simple%20Outputs/HSDP-1D.md)
   high-speed printer.
 - [KaiComm SSI](
-    https://github.com/shepheb/TC-Specs/blob/tiled-display/IO%20Data/KaiComm-SSI.md)
+    https://github.com/bshepherdson/TC-Specs/blob/tiled-display/IO%20Data/KaiComm-SSI.md)
     serial interface (uses the console, handy for early of text interfaces)
 
 All devices publish the Techcompliant new IDs, not the old Notch ones.

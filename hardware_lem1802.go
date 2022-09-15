@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/shepheb/tc-dcpu/common"
+	"github.com/bshepherdson/tc-dcpu/common"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
