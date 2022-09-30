@@ -227,10 +227,10 @@ type opHandler interface {
 }
 
 var handlers = []*encoding{
-	&encoding{mask: 0x7fc0, value: 0x0000, handler: handleNullary},
-	&encoding{mask: 0x7800, value: 0x0000, handler: handleUnary},
-	&encoding{mask: 0x7800, value: 0x0800, handler: handleUnaryBranch},
-	&encoding{mask: 0x0000, value: 0x0000, handler: handleBinary},
+	{mask: 0x7fc0, value: 0x0000, handler: handleNullary},
+	{mask: 0x7800, value: 0x0000, handler: handleUnary},
+	{mask: 0x7800, value: 0x0800, handler: handleUnaryBranch},
+	{mask: 0x0000, value: 0x0000, handler: handleBinary},
 }
 
 func handlerFor(opcode uint16) opHandler {

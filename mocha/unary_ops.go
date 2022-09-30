@@ -22,8 +22,13 @@ var unaryNames = []string{"", "SWP", "PEA", "NOT", "NEG", "JSR", "LOG", "LNK",
 	"", "HWN", "HWQ", "HWI", "INT", "IAQ", "EXT", "CLR", "PSH", "POP"}
 
 func (unary) disassemble(d *disState, opcode uint16) {
+	index := (opcode >> 6) & 0x3f
+	name := "(illegal)"
+	if int(index) < len(unaryNames) {
+		name = unaryNames[index]
+	}
 	d.emit(
-		unaryNames[(opcode>>6)&0x3f],
+		name,
 		d.disL(opcode&0x8000 != 0),
 		" ", d.disOperand(opcode&0x3f),
 	)

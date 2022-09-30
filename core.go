@@ -161,7 +161,7 @@ func fKey(c common.CPU, key int) {
 		if Turbo {
 			fmt.Println("Turbo enabled: speed unlimited")
 		} else {
-			fmt.Println("Turbo disabled: running at 100kHz")
+			fmt.Println("Turbo disabled: running at nominal speed")
 		}
 
 	case 6: // F6 - eject/insert disk
@@ -191,42 +191,33 @@ func fKey(c common.CPU, key int) {
 	}
 }
 
-func delay(in <-chan bool, out chan<- bool) {
+func speedLogger(cycles *int) {
+	lastCount := 0
+	ticker := time.Tick(5 * time.Second)
 	for {
-		die := <-in
-		if die {
-			return
-		}
-		time.Sleep(10 * time.Microsecond)
-		out <- true
+		<-ticker
+		newCount := *cycles
+		fmt.Printf("Ran %d cycles in 5 seconds: %.2f kHz\n", newCount-lastCount,
+			float64(newCount-lastCount)/5000)
+		lastCount = newCount
 	}
 }
 
 func run(c common.CPU) {
-	// Construct a "delay circuit": a goroutine that receives on a channel, waits
-	// one cycle (100kHz, so waiting 10us) and then sends on another channel.
-	/*
-		in := make(chan bool)
-		out := make(chan bool)
-		go delay(in, out)
-		defer func() { in <- true }()
-
-		cycles := 0
-		start := time.Now()
-
-	*/
-
 	// Ticks at 100Hz, so I run c.Speed()/100 cycles per tick, for about the right
 	// net speed over time.
 	ticker := time.Tick(10 * time.Millisecond)
 	cpuChunkSize := c.Speed() / 100
 	cycles := 0
+	combinedCycles := 0
+	go speedLogger(&combinedCycles)
 
 	// Repeatedly try to run the CPU operation, stopping on a debug to show the
 	// console.
 	for {
 		for !*c.Debugging() {
 			cycles++
+			combinedCycles++
 			if !Turbo && cycles >= cpuChunkSize {
 				_ = <-ticker
 				cycles = 0

@@ -157,8 +157,9 @@ func mcReadWord(c *m86k, s *mcState) {
 // ( addr32 -- u32 )
 func mcReadLongword(c *m86k, s *mcState) {
 	addr := s.pop()
-	hi := c.readWord(addr)
-	lo := c.readWord(addr + 1)
+	lo := c.readWord(addr)
+	hi := c.readWord(addr + 1)
+	//fmt.Printf("mcReadLongword: $%08x = $%04x + $%04x = $%08x\n", addr, lo, hi, (uint32(hi)<<16)|uint32(lo))
 	s.push((uint32(hi) << 16) | uint32(lo))
 	c.cycles += 2
 }
@@ -174,8 +175,8 @@ func mcWriteWord(c *m86k, s *mcState) {
 func mcWriteLongword(c *m86k, s *mcState) {
 	addr := s.pop()
 	value := s.pop()
-	c.writeWord(addr, uint16(value>>16))
-	c.writeWord(addr+1, uint16(value))
+	c.writeWord(addr, uint16(value))
+	c.writeWord(addr+1, uint16(value>>16))
 	c.cycles += 2
 }
 

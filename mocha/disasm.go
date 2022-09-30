@@ -8,6 +8,7 @@ import (
 func (c *m86k) DisassembleOp(at uint32) uint16 {
 	d := &disState{pc: at, cpu: c}
 	opcode := d.consumeWord()
+	//fmt.Printf("Dis: $%08x: $%04x\n", at, opcode)
 	handlerFor(opcode).disassemble(d, opcode)
 
 	var strs []string
@@ -43,8 +44,8 @@ func (d *disState) consumeWord() uint16 {
 }
 
 func (d *disState) consumeLongword() uint32 {
-	hi := d.consumeWord()
 	lo := d.consumeWord()
+	hi := d.consumeWord()
 	return (uint32(hi) << 16) | uint32(lo)
 }
 
@@ -112,7 +113,10 @@ func (d *disState) disOperand(operand uint16) string {
 }
 
 func (d *disState) reg(reg uint16) string {
-	return registers[reg]
+	if reg < uint16(len(registers)) {
+		return registers[reg]
+	}
+	return "(illegal)"
 }
 
 func (d *disState) disReg(reg uint16) {
