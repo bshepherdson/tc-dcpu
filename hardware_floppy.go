@@ -233,11 +233,11 @@ func (fd *M35FD) Tick(c common.CPU) {
 
 	// Actually perform the read or write!
 	if fd.writing {
-		mem := c.Memory()[fd.addr : fd.addr+512]
 		bytes := make([]byte, 1024)
 		for i := 0; i < 512; i++ {
-			bytes[2*i] = byte(mem[i] >> 8)
-			bytes[2*i+1] = byte(mem[i] & 0xff)
+			w := c.Memory()[fd.addr + uint16(i)]
+			bytes[2*i] = byte(w >> 8)
+			bytes[2*i+1] = byte(w & 0xff)
 		}
 		_, err := fd.file.WriteAt(bytes, int64(fd.sector)*1024)
 		if err != nil {
@@ -246,7 +246,6 @@ func (fd *M35FD) Tick(c common.CPU) {
 
 		}
 	} else {
-		mem := c.Memory()[fd.addr : fd.addr+512]
 		bytes := make([]byte, 1024)
 		n, err := fd.file.ReadAt(bytes, int64(fd.sector)*1024)
 		if err != nil && err != io.EOF {
@@ -257,9 +256,9 @@ func (fd *M35FD) Tick(c common.CPU) {
 		// In case of EOF, we read 0s.
 		for i := 0; i < 512; i++ {
 			if 2*i < n {
-				mem[i] = (uint16(bytes[2*i]) << 8) | uint16(bytes[2*i+1])
+				c.Memory()[fd.addr + uint16(i)] = (uint16(bytes[2*i]) << 8) | uint16(bytes[2*i+1])
 			} else {
-				mem[i] = 0
+				c.Memory()[fd.addr + uint16(i)] = 0
 			}
 		}
 	}
