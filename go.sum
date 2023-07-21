@@ -1,4 +1,2 @@
-github.com/bshepherdson/tc-dcpu v0.0.0-20200724175525-00c5e0e60ddf h1:HC2y1DmJHIpX4iPbSzy9IxZytOgbVtQTzyhylT1Kw4o=
-github.com/bshepherdson/tc-dcpu v0.0.0-20200724175525-00c5e0e60ddf/go.mod h1:mSF9CZz+/VeVpKwZsJo+riohi7LTay8YPDBvw9G7iE8=
 github.com/veandco/go-sdl2 v0.4.25 h1:J5ac3KKOccp/0xGJA1PaNYKPUcZm19IxhDGs8lJofPI=
 github.com/veandco/go-sdl2 v0.4.25/go.mod h1:OROqMhHD43nT4/i9crJukyVecjPNYYuCofep6SNiAjY=
